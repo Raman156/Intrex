@@ -53,6 +53,9 @@ const FirebaseSignup = () => {
     setLoading(true)
 
     try {
+      if (!auth) {
+        throw new Error('Firebase authentication is not configured. Please set Firebase environment variables.')
+      }
       console.log('Attempting signup with:', email)
       // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
@@ -63,8 +66,7 @@ const FirebaseSignup = () => {
       })
 
       console.log('Signup successful:', userCredential.user.email)
-      // Redirect to profile to complete setup
-      navigate('/profile')
+      navigate('/dashboard')
     } catch (err) {
       console.error('Signup error:', err.code, err.message)
       const errorMessage = getFirebaseErrorMessage(err.code)
@@ -79,12 +81,14 @@ const FirebaseSignup = () => {
     setLoading(true)
 
     try {
+      if (!auth) {
+        throw new Error('Firebase authentication is not configured. Please set Firebase environment variables.')
+      }
       console.log('Attempting Google signup')
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
       console.log('Google signup successful:', result.user.email)
-      // Redirect to profile to complete setup
-      navigate('/profile')
+      navigate('/dashboard')
     } catch (err) {
       console.error('Google signup error:', err.code, err.message)
       const errorMessage = getFirebaseErrorMessage(err.code)
@@ -104,7 +108,7 @@ const FirebaseSignup = () => {
       'auth/popup-closed-by-user': 'Google signup was cancelled.',
       'auth/network-request-failed': 'Network error. Please check your connection.',
     }
-    return errorMessages[code] || err.message || 'Signup failed. Please try again.'
+    return errorMessages[code] || 'Signup failed. Please try again.'
   }
 
   return (

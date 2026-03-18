@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login, googleLogin } from '../api/api';
 import { setAuthToken } from '../utils/authStorage';
@@ -27,7 +27,9 @@ const Login = () => {
       // Force page reload to update AuthContext
       window.location.href = '/dashboard';
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      const detail = err?.response?.data?.detail;
+      const message = typeof detail === 'string' ? detail : err?.message;
+      setError(message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -38,6 +40,9 @@ const Login = () => {
     setLoading(true);
     try {
       const token = credentialResponse.credential || credentialResponse.id_token;
+      if (!token) {
+        throw new Error('Google Sign-In token not received. Please try again.');
+      }
       console.log('Google token received:', token ? 'Yes' : 'No');
       
       const response = await googleLogin(token);
@@ -52,7 +57,9 @@ const Login = () => {
       window.location.href = '/dashboard';
     } catch (err) {
       console.error('Google login error:', err);
-      setError(err.message || 'Google login failed. Please try again.');
+      const detail = err?.response?.data?.detail;
+      const message = typeof detail === 'string' ? detail : err?.message;
+      setError(message || 'Google login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -61,8 +68,13 @@ const Login = () => {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
   useEffect(() => {
-    if (window.google && googleClientId && googleButtonRef.current) {
+    if (!googleClientId) {
+      return;
+    }
+
+    if (window.google && googleButtonRef.current) {
       try {
+        googleButtonRef.current.innerHTML = '';
         window.google.accounts.id.initialize({
           client_id: googleClientId,
           callback: handleGoogleSuccess,
@@ -90,6 +102,15 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-7xl">
+        <div className="flex justify-end mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </Link>
+        </div>
         <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Side - Form */}
           <motion.div
@@ -260,6 +281,12 @@ const Login = () => {
                 ref={googleButtonRef}
                 className="flex justify-center"
               ></div>
+
+              {!googleClientId && (
+                <p className="text-xs text-center text-amber-600">
+                  Google Sign-In is not configured. Set VITE_GOOGLE_CLIENT_ID to enable it.
+                </p>
+              )}
               
               {/* Account switch hint */}
               <p className="text-xs text-center text-gray-500">
@@ -283,7 +310,7 @@ const Login = () => {
             >
               Don't have an account?{' '}
               <Link
-                to="/signup"
+                to="/firebase-signup"
                 className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
               >
                 Create one

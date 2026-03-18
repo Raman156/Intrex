@@ -23,6 +23,17 @@ router = APIRouter()
 active_connections: Dict[str, WebSocket] = {}
 
 
+@router.get("/ai-interview/status")
+async def ai_interview_status():
+    """Return AI interview backend readiness and Gemini availability."""
+    return {
+        "success": True,
+        "api_connected": True,
+        "gemini_active": bool(getattr(ai_interviewer, "use_gemini", False)),
+        "model": getattr(ai_interviewer, "model", None).__class__.__name__ if getattr(ai_interviewer, "model", None) else None,
+    }
+
+
 @router.post("/ai-interview/test-upload")
 async def test_upload(
     resume: UploadFile = File(...)

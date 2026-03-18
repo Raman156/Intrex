@@ -1,34 +1,25 @@
-import React, { Suspense, lazy } from 'react'
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
-
-const PremiumLanding = lazy(() => import('./pages/PremiumLanding'))
-const SimpleLanding = lazy(() => import('./pages/SimpleLanding'))
-const FinalLanding = lazy(() => import('./pages/FinalLanding'))
-const EnhancedLanding = lazy(() => import('./pages/EnhancedLanding'))
-const Landing = lazy(() => import('./pages/Landing'))
-const LiveInterview = lazy(() => import('./pages/LiveInterview'))
-const Upload = lazy(() => import('./pages/Upload'))
-const VideoUpload = lazy(() => import('./pages/VideoUpload'))
-const Dashboard = lazy(() => import('./pages/Dashboard'))
-const Home = lazy(() => import('./pages/Home'))
-const Results = lazy(() => import('./pages/Results'))
-const Login = lazy(() => import('./pages/Login'))
-const Signup = lazy(() => import('./pages/Signup'))
-const FirebaseLogin = lazy(() => import('./pages/FirebaseLogin'))
-const FirebaseSignup = lazy(() => import('./pages/FirebaseSignup'))
-const Profile = lazy(() => import('./pages/Profile'))
-const TestUpload = lazy(() => import('./pages/TestUpload'))
-const TermsOfService = lazy(() => import('./pages/TermsOfService'))
-const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
-const CookiePage = lazy(() => import('./pages/CookiePage'))
-const AboutUs = lazy(() => import('./pages/AboutUs'))
-const Pricing = lazy(() => import('./pages/Pricing'))
-const ComingSoon = lazy(() => import('./pages/ComingSoon'))
-const Settings = lazy(() => import('./pages/Settings'))
-const InterviewSelection = lazy(() => import('./pages/InterviewSelection'))
-const InterviewResults = lazy(() => import('./features/live-interview/pages/InterviewResults'))
-const NotFound = lazy(() => import('./pages/NotFound'))
+import { ThemeProvider } from './context/ThemeContext'
+import ErrorBoundary from './components/ErrorBoundary'
+import SimpleLanding from './pages/SimpleLanding'
+import FinalLanding from './pages/FinalLanding'
+import EnhancedLanding from './pages/EnhancedLanding'
+import Landing from './pages/Landing'
+import LiveInterview from './pages/LiveInterview'
+import InterviewResults from './pages/InterviewResults'
+import Upload from './pages/Upload'
+import VideoUpload from './pages/VideoUpload'
+import Dashboard from './pages/Dashboard'
+import Results from './pages/Results'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import FirebaseLogin from './pages/FirebaseLogin'
+import FirebaseSignup from './pages/FirebaseSignup'
+import EnhancedResumeUpload from './pages/EnhancedResumeUpload'
+import Profile from './pages/Profile'
+import TestUpload from './pages/TestUpload'
 
 function App() {
   return (
@@ -67,8 +58,8 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/results" element={<Navigate to="/dashboard" replace />} />
               <Route path="/results/:id" element={<Results />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
+              <Route path="/login" element={<Navigate to="/firebase-login" replace />} />
+              <Route path="/signup" element={<Navigate to="/firebase-signup" replace />} />
               <Route path="/firebase-login" element={<FirebaseLogin />} />
               <Route path="/firebase-signup" element={<FirebaseSignup />} />
               <Route path="/profile" element={<Profile />} />

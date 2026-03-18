@@ -45,12 +45,16 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
+    if (!authLoading && !user) {
+      navigate('/firebase-login');
+      return;
+    }
+
+    if (authLoading || !user) {
       return;
     }
 
@@ -68,7 +72,7 @@ const Profile = () => {
     setResumeUploaded(resumeStatus === 'true');
 
     setLoading(false);
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -113,13 +117,13 @@ const Profile = () => {
       await signOut(auth);
       localStorage.removeItem('profileData');
       localStorage.removeItem('resumeUploaded');
-      navigate('/login');
+      navigate('/firebase-login');
     } catch (err) {
       console.error('Logout error:', err);
     }
   };
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-slate-900 dark:bg-slate-900 flex items-center justify-center">
         <div className="text-center">

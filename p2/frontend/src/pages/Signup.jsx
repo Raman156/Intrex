@@ -281,7 +281,7 @@ const Signup = () => {
           </div>
 
           {/* Login Link */}
-          <Link to="/login">
+          <Link to="/firebase-login">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}

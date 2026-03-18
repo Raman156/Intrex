@@ -11,7 +11,7 @@ function Home() {
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-dark-900' : 'bg-gray-50'}`}>
-      <Navbar />
+      <PolishedNavbar />
       
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">

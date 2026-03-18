@@ -88,7 +88,7 @@ const SimpleNavbar = () => {
                 </button>
               </Link>
             ) : (
-              <Link to="/login">
+              <Link to="/firebase-login">
                 <button className="px-4 py-2 bg-slate-800 border border-slate-700 text-white rounded-lg text-sm hover:bg-slate-700 transition-colors flex items-center gap-2">
                   <LogIn className="w-4 h-4" />
                   Login
@@ -162,7 +162,7 @@ const SimpleNavbar = () => {
                   </button>
                 </Link>
               ) : (
-                <Link to="/login" onClick={() => setIsOpen(false)}>
+                <Link to="/firebase-login" onClick={() => setIsOpen(false)}>
                   <button className="w-full px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">
                     Login
                   </button>

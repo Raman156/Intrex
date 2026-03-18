@@ -1,19 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Menu, X, User, LogIn, Zap } from 'lucide-react';
-import { getAuthToken } from '../utils/authStorage';
+import { useAuth } from '../context/AuthContext';
 
 const PolishedNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, loading } = useAuth();
   const location = useLocation();
 
-  useEffect(() => {
-    const token = getAuthToken();
-    setIsLoggedIn(!!token);
-  }, [location]);
+  const isLoggedIn = !!user;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -23,6 +20,21 @@ const PolishedNavbar = () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   // Add Escape key support for mobile menu
   useEffect(() => {
@@ -35,7 +47,12 @@ const PolishedNavbar = () => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen]);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -146,6 +163,8 @@ const PolishedNavbar = () => {
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden p-2 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+            aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={isOpen}
           >
             <AnimatePresence mode="wait">
               {isOpen ? (
@@ -214,7 +233,7 @@ const PolishedNavbar = () => {
               ))}
               
               <div className="pt-4 space-y-3 border-t border-white/10">
-                {isLoggedIn ? (
+                {!loading && isLoggedIn ? (
                   <Link to="/profile" onClick={() => setIsOpen(false)}>
                     <motion.button
                       whileTap={{ scale: 0.95 }}

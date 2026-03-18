@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { startAIInterview, submitAnswer, completeInterview } from '../api/api'
+import { startAIInterview, submitAnswer, completeInterview, checkApiHealth, getAIInterviewStatus } from '../api/api'
 import { batchAnalyzeAnswers, calculateOverallPerformance } from '../services/analysisService'
 import { generateSessionSummary, createInterviewSessionResult, generatePerformanceInsights } from '../services/summaryService'
 import { saveSessionResult } from '../services/sessionStorage'
@@ -15,6 +16,8 @@ import SessionSummary from './SessionSummary'
 import ResultsPage from './ResultsPage'
 
 function AIInterview() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const [step, setStep] = useState('upload') // upload, mic-check, interview, analyzing, results
   const [sessionId, setSessionId] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -31,6 +34,12 @@ function AIInterview() {
   const [sessionSummary, setSessionSummary] = useState(null)
   const [performanceInsights, setPerformanceInsights] = useState(null)
   const [finalSessionResult, setFinalSessionResult] = useState(null)
+  const [serviceStatus, setServiceStatus] = useState({
+    checking: true,
+    apiConnected: false,
+    geminiActive: false,
+    error: ''
+  })
   
   // Form state
   const [resume, setResume] = useState(null)
@@ -39,8 +48,6 @@ function AIInterview() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [targetedRole, setTargetedRole] = useState('Software Developer')
   const [yearsOfExperience, setYearsOfExperience] = useState(3)
-  
-  const navigate = useNavigate()
 
   // Action handlers for ResultsPage
   const handleRetryInterview = () => {
@@ -67,6 +74,26 @@ function AIInterview() {
 
   const handleGoToDashboard = () => {
     navigate('/dashboard')
+  }
+
+  const refreshServiceStatus = async () => {
+    setServiceStatus(prev => ({ ...prev, checking: true, error: '' }))
+    try {
+      const status = await getAIInterviewStatus()
+      setServiceStatus({
+        checking: false,
+        apiConnected: !!status.api_connected,
+        geminiActive: !!status.gemini_active,
+        error: ''
+      })
+    } catch (error) {
+      setServiceStatus({
+        checking: false,
+        apiConnected: false,
+        geminiActive: false,
+        error: error.message || 'Unable to reach backend'
+      })
+    }
   }
 
   const handleDownloadReport = () => {
@@ -112,6 +139,10 @@ function AIInterview() {
     }
   }, [questions])
 
+  useEffect(() => {
+    refreshServiceStatus()
+  }, [])
+
   const getCurrentQuestionId = () => {
     return questions[currentQuestionIndex]?.id || `question_${currentQuestionIndex}`
   }
@@ -142,7 +173,26 @@ function AIInterview() {
     setIsGenerating(true)
     
     try {
-      const response = await startAIInterview(resume, jobDescription, numQuestions)
+      await checkApiHealth()
+
+      const normalizedExperience = Number.isFinite(yearsOfExperience)
+        ? yearsOfExperience
+        : parseInt(yearsOfExperience, 10) || 0
+
+      const difficulty = normalizedExperience <= 1
+        ? 'beginner'
+        : normalizedExperience <= 4
+          ? 'intermediate'
+          : 'advanced'
+
+      const enrichedJobDescription = `${jobDescription.trim()}\n\nCandidate Context:\n- Target Role: ${targetedRole.trim()}\n- Years of Experience: ${normalizedExperience}`
+
+      const response = await startAIInterview(
+        resume,
+        enrichedJobDescription,
+        numQuestions,
+        { difficulty }
+      )
       
       if (response.success) {
         setSessionId(response.session_id)
@@ -151,7 +201,7 @@ function AIInterview() {
       }
     } catch (error) {
       console.error('Error starting interview:', error)
-      alert(error.response?.data?.detail || 'Failed to start interview')
+      alert(error.message || 'Failed to start interview')
     } finally {
       setIsGenerating(false)
     }
@@ -317,7 +367,7 @@ function AIInterview() {
       // Create comprehensive session result
       const sessionResult = createInterviewSessionResult(
         sessionId,
-        'current-user', // TODO: Get from auth context
+        user?.id || 'anonymous-user',
         targetedRole,
         analysisResults,
         summary,
@@ -419,6 +469,48 @@ function AIInterview() {
                 <p className="text-sm text-gray-400">Upload your resume and get personalized questions</p>
               </div>
             </div>
+
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                serviceStatus.checking
+                  ? 'bg-gray-500/10 text-gray-300 border-gray-500/30'
+                  : serviceStatus.apiConnected
+                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
+                    : 'bg-red-500/10 text-red-400 border-red-500/30'
+              }`}>
+                {serviceStatus.checking
+                  ? 'Checking API...'
+                  : serviceStatus.apiConnected
+                    ? 'API Connected'
+                    : 'API Disconnected'}
+              </span>
+
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                serviceStatus.checking
+                  ? 'bg-gray-500/10 text-gray-300 border-gray-500/30'
+                  : serviceStatus.geminiActive
+                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              }`}>
+                {serviceStatus.checking
+                  ? 'Checking Gemini...'
+                  : serviceStatus.geminiActive
+                    ? 'Gemini Active'
+                    : 'Gemini Fallback Mode'}
+              </span>
+
+              <button
+                type="button"
+                onClick={refreshServiceStatus}
+                className="px-3 py-1 rounded-full text-xs font-semibold border border-white/20 text-gray-300 hover:bg-white/10 transition-colors"
+              >
+                Refresh Status
+              </button>
+            </div>
+
+            {serviceStatus.error && (
+              <p className="mb-4 text-xs text-red-400">Status check failed: {serviceStatus.error}</p>
+            )}
 
             <form onSubmit={handleStartInterview} className="space-y-6">
               <div>

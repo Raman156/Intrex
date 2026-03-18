@@ -21,8 +21,6 @@ export const AuthProvider = ({ children }) => {
         const userData = JSON.parse(storedUser)
         console.log('User loaded from localStorage:', userData.email)
         setUser(userData)
-        setLoading(false)
-        return
       } catch (err) {
         console.error('Error parsing stored user:', err)
       }

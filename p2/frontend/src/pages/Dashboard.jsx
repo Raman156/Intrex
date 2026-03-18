@@ -14,7 +14,7 @@ const Dashboard = () => {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/login')
+      navigate('/firebase-login')
     }
   }, [user, loading, navigate])
 
@@ -280,7 +280,7 @@ const Dashboard = () => {
                       <span className="text-green-400 text-xs font-bold">✓</span>
                     </div>
                     <span className="text-gray-300 text-sm">{strength}</span>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </motion.div>
@@ -311,7 +311,7 @@ const Dashboard = () => {
                       <span className="text-amber-400 text-xs font-bold">!</span>
                     </div>
                     <span className="text-gray-300 text-sm">{improvement}</span>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </motion.div>
@@ -335,7 +335,7 @@ const Dashboard = () => {
                     </div>
                     <p className="text-gray-300 pt-1 text-sm">{question}</p>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
             <Link to="/interview-selection">

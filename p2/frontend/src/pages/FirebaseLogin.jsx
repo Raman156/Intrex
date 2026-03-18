@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Home } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
 import { auth } from '../config/firebase'
@@ -28,11 +28,13 @@ const FirebaseLogin = () => {
     setLoading(true)
 
     try {
+      if (!auth) {
+        throw new Error('Firebase authentication is not configured. Please set Firebase environment variables.')
+      }
       console.log('Attempting email login with:', email)
       const result = await signInWithEmailAndPassword(auth, email, password)
       console.log('Login successful:', result.user.email)
-      // Redirect to profile to complete setup
-      navigate('/profile')
+      navigate('/dashboard')
     } catch (err) {
       console.error('Login error:', err.code, err.message)
       const errorMessage = getFirebaseErrorMessage(err.code)
@@ -47,12 +49,14 @@ const FirebaseLogin = () => {
     setLoading(true)
 
     try {
+      if (!auth) {
+        throw new Error('Firebase authentication is not configured. Please set Firebase environment variables.')
+      }
       console.log('Attempting Google login')
       const provider = new GoogleAuthProvider()
       const result = await signInWithPopup(auth, provider)
       console.log('Google login successful:', result.user.email)
-      // Redirect to profile to complete setup
-      navigate('/profile')
+      navigate('/dashboard')
     } catch (err) {
       console.error('Google login error:', err.code, err.message)
       const errorMessage = getFirebaseErrorMessage(err.code)
@@ -78,6 +82,15 @@ const FirebaseLogin = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-7xl">
+        <div className="flex justify-end mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-600 text-gray-200 hover:bg-slate-700 transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            <span>Home</span>
+          </Link>
+        </div>
         <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Side - Form */}
           <motion.div

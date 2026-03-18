@@ -31,7 +31,7 @@ const SimpleHeroSection = () => {
                   className="px-3 py-1.5 bg-slate-800 text-gray-300 rounded-full text-sm border border-slate-700 hover:border-violet-500 hover:bg-slate-700 transition-colors cursor-pointer font-medium"
                 >
                   {role}
-                </Link>
+                </span>
               ))}
             </div>
 

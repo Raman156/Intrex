@@ -7,9 +7,6 @@ import {
 const COLORS = ['#0066e6', '#10b981', '#f59e0b', '#ef4444']
 
 function Charts({ facialMetrics, speechMetrics, isLoading = false }) {
-  // Debug: Log the metrics
-  console.log('Facial Metrics:', facialMetrics)
-  console.log('Speech Metrics:', speechMetrics)
 
   // Loading state
   if (isLoading) {
@@ -72,16 +69,12 @@ function Charts({ facialMetrics, speechMetrics, isLoading = false }) {
     },
   ]
 
-  console.log('Facial Data for Chart:', facialData)
-  console.log('Speech Data for Chart:', speechData)
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Facial Metrics Pie Chart */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-lg font-semibold mb-4">Facial Metrics</h3>
         
-        {/* Debug: Show raw values */}
         <div className="mb-4 p-3 bg-gray-50 rounded text-sm">
           <p><strong>Eye Contact:</strong> {(facialMetrics.eye_contact_score * 100).toFixed(1)}%</p>
           <p><strong>Head Stability:</strong> {(facialMetrics.head_stability_score * 100).toFixed(1)}%</p>

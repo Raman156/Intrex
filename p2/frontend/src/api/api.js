@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { getAuthToken, clearAuthToken } from '../utils/authStorage'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+const API_ROOT_URL = API_BASE_URL.replace(/\/api\/?$/, '')
 
 // Create axios instance with default config
 const api = axios.create({
@@ -245,12 +246,35 @@ export const getCurrentUser = async () => {
   })
 }
 
+export const checkApiHealth = async () => {
+  const response = await axios.get(`${API_ROOT_URL}/health`, {
+    timeout: 8000,
+    withCredentials: false,
+  })
+  return response.data
+}
+
+export const getAIInterviewStatus = async () => {
+  const response = await api.get('/ai-interview/status')
+  return response.data
+}
+
 // AI Interview APIs
-export const startAIInterview = async (resume, jobDescription, numQuestions) => {
+export const startAIInterview = async (
+  resume,
+  jobDescription,
+  numQuestions,
+  options = {}
+) => {
+  const {
+    difficulty = 'intermediate',
+  } = options
+
   const formData = new FormData()
   formData.append('resume', resume)
   formData.append('job_description', jobDescription)
   formData.append('num_questions', numQuestions)
+  formData.append('difficulty', difficulty)
   
   return retryRequest(async () => {
     const response = await api.post('/ai-interview/start', formData, {

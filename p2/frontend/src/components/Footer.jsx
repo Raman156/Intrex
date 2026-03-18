@@ -76,7 +76,7 @@ const Footer = () => {
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   Pricing
-                </Link>
+                </a>
               </li>
             </ul>
           </div>
@@ -88,17 +88,17 @@ const Footer = () => {
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   About Us
-                </Link>
+                </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   Careers
-                </Link>
+                </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   Blog
-                </Link>
+                </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
@@ -115,17 +115,17 @@ const Footer = () => {
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   Privacy Policy
-                </Link>
+                </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   Terms of Service
-                </Link>
+                </a>
               </li>
               <li>
                 <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors duration-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400 rounded px-1">
                   Cookie Policy
-                </Link>
+                </a>
               </li>
             </ul>
           </div>
