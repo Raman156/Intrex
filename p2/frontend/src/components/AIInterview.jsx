@@ -15,10 +15,27 @@ import AnalysisDisplay from './AnalysisDisplay'
 import SessionSummary from './SessionSummary'
 import ResultsPage from './ResultsPage'
 
+// Speak text using the Web Speech API
+function speakQuestion(text) {
+  if (!window.speechSynthesis) return
+  window.speechSynthesis.cancel() // stop any ongoing speech
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.rate = 0.92
+  utterance.pitch = 1
+  utterance.volume = 1
+  // Prefer a natural English voice if available
+  const voices = window.speechSynthesis.getVoices()
+  const preferred = voices.find(v => v.lang.startsWith('en') && v.localService)
+    || voices.find(v => v.lang.startsWith('en'))
+  if (preferred) utterance.voice = preferred
+  window.speechSynthesis.speak(utterance)
+}
+
 function AIInterview() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState('upload') // upload, mic-check, interview, analyzing, results
+  const [isSpeaking, setIsSpeaking] = useState(false)
   const [sessionId, setSessionId] = useState(null)
   const [questions, setQuestions] = useState([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -143,6 +160,32 @@ function AIInterview() {
   useEffect(() => {
     refreshServiceStatus()
   }, [])
+
+  // Speak the current question whenever it changes during the interview
+  useEffect(() => {
+    if (step === 'interview' && questions.length > 0) {
+      const q = questions[currentQuestionIndex]
+      if (q?.question) {
+        setIsSpeaking(true)
+        const utterance = new SpeechSynthesisUtterance(q.question)
+        utterance.rate = 0.92
+        utterance.pitch = 1
+        utterance.volume = 1
+        const voices = window.speechSynthesis?.getVoices() || []
+        const preferred = voices.find(v => v.lang.startsWith('en') && v.localService)
+          || voices.find(v => v.lang.startsWith('en'))
+        if (preferred) utterance.voice = preferred
+        utterance.onend = () => setIsSpeaking(false)
+        utterance.onerror = () => setIsSpeaking(false)
+        window.speechSynthesis?.cancel()
+        window.speechSynthesis?.speak(utterance)
+      }
+    }
+    return () => {
+      window.speechSynthesis?.cancel()
+      setIsSpeaking(false)
+    }
+  }, [step, currentQuestionIndex, questions])
 
   const getCurrentQuestionId = () => {
     return questions[currentQuestionIndex]?.id || `question_${currentQuestionIndex}`
@@ -792,10 +835,23 @@ function AIInterview() {
                     <span className="text-xs px-3 py-1 bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
                       {formatTime(getCurrentSession()?.allocatedTime || 120)} allocated
                     </span>
+                    {isSpeaking && (
+                      <span className="text-xs px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full border border-purple-500/30 flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+                        Speaking...
+                      </span>
+                    )}
                   </div>
                   <p className="text-lg font-medium text-white leading-relaxed">
                     {questions[currentQuestionIndex].question}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => speakQuestion(questions[currentQuestionIndex].question)}
+                    className="mt-3 flex items-center gap-2 text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                  >
+                    <span>🔊</span> Replay question
+                  </button>
                 </div>
               </div>
             </motion.div>
