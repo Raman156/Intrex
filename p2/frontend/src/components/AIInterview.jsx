@@ -8,6 +8,7 @@ import { generateSessionSummary, createInterviewSessionResult, generatePerforman
 import { saveSessionResult } from '../services/sessionStorage'
 import { downloadHTMLReport, downloadTextReport, downloadJSONReport } from '../utils/pdfGenerator'
 import MicrophoneValidator from './MicrophoneValidator'
+import WebcamPanel from './WebcamPanel'
 import AudioRecorder from './AudioRecorder'
 import QuestionTimer from './QuestionTimer'
 import TranscriptionStatus from './TranscriptionStatus'
@@ -15,6 +16,22 @@ import AnalysisDisplay from './AnalysisDisplay'
 import SessionSummary from './SessionSummary'
 import ResultsPage from './ResultsPage'
 import LiveFacialAnalysis from './LiveFacialAnalysis'
+
+// Speak text using the Web Speech API
+function speakQuestion(text) {
+  if (!window.speechSynthesis) return
+  window.speechSynthesis.cancel() // stop any ongoing speech
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.rate = 0.92
+  utterance.pitch = 1
+  utterance.volume = 1
+  // Prefer a natural English voice if available
+  const voices = window.speechSynthesis.getVoices()
+  const preferred = voices.find(v => v.lang.startsWith('en') && v.localService)
+    || voices.find(v => v.lang.startsWith('en'))
+  if (preferred) utterance.voice = preferred
+  window.speechSynthesis.speak(utterance)
+}
 
 // Speak text using the Web Speech API
 function speakQuestion(text) {
@@ -593,13 +610,18 @@ function AIInterview() {
   }, [])
 
   return (
-    <div className="glass rounded-2xl p-8 border border-surface-border">
+    <div className="glass rounded-2xl border border-surface-border overflow-hidden">
       {/* Microphone Validator Modal */}
       <MicrophoneValidator
         isVisible={showMicValidator}
         onValidationComplete={handleMicValidationComplete}
       />
-      
+
+      {/* Persistent two-column layout: content left, webcam right */}
+      <div className="flex flex-col lg:flex-row min-h-0">
+
+        {/* ── Left: all step content ── */}
+        <div className="flex-1 p-6 lg:p-8 min-w-0">
       <AnimatePresence mode="wait">
         {step === 'upload' && (
           <motion.div
@@ -964,81 +986,86 @@ function AIInterview() {
                   session={getCurrentSession()} 
                   className="max-w-2xl mx-auto"
                 />
-                
-                <div className="glass rounded-2xl p-8 text-center border border-surface-border">
-                  <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-4xl">✓</span>
-                  </div>
-                  <p className="text-green-400 mb-2 text-lg font-semibold">Answer Recorded!</p>
-                  <p className="text-gray-400 mb-6">
-                    Time used: {formatTime(getCurrentSession()?.timeUsed || 0)}
-                  </p>
-                  <div className="flex gap-4 justify-center">
-                    <motion.button
-                      onClick={handleSubmitAnswer}
-                      disabled={isSubmitting}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-gradient-accent text-white py-4 px-10 rounded-xl hover:shadow-xl 
-                        transition-all duration-200 font-semibold text-lg disabled:bg-gray-600 
-                        professional-glow flex items-center gap-2"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          Submit Answer
-                          <span>→</span>
-                        </>
-                      )}
-                    </motion.button>
-                    <motion.button
-                      onClick={() => {
-                        const questionId = getCurrentQuestionId()
-                        const session = getCurrentSession()
-                        if (session?.audioBlob) {
-                          URL.revokeObjectURL(session.audioBlob)
-                        }
-                        updateQuestionSession(questionId, { 
-                          audioBlob: null, 
-                          timeUsed: 0,
-                          transcript: null,
-                          transcriptionStatus: 'pending'
-                        })
-                      }}
-                      disabled={isSubmitting}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="glass glass-hover text-gray-300 py-4 px-10 rounded-xl 
-                        transition-all duration-200 font-semibold text-lg disabled:opacity-50"
-                    >
-                      Re-record
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            
-            {answers.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-green-500/10 border border-green-500/30 p-4 rounded-xl flex items-center gap-3"
-              >
-                <span className="text-2xl">✓</span>
-                <div>
-                  <p className="text-sm font-medium text-green-400">
-                    {answers.length} answer(s) submitted
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {questions.length - answers.length} remaining
-                  </p>
-                </div>
-              </motion.div>
-            )}
+
+                {/* Submit Section */}
+                {!isRecording && getCurrentSession()?.audioBlob && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="space-y-4"
+                  >
+                    <TranscriptionStatus 
+                      session={getCurrentSession()} 
+                      className="max-w-2xl mx-auto"
+                    />
+                    <div className="glass rounded-2xl p-8 text-center border border-surface-border">
+                      <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-4xl">✓</span>
+                      </div>
+                      <p className="text-green-400 mb-2 text-lg font-semibold">Answer Recorded!</p>
+                      <p className="text-gray-400 mb-6">
+                        Time used: {formatTime(getCurrentSession()?.timeUsed || 0)}
+                      </p>
+                      <div className="flex gap-4 justify-center">
+                        <motion.button
+                          onClick={handleSubmitAnswer}
+                          disabled={isSubmitting}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="bg-gradient-accent text-white py-4 px-10 rounded-xl hover:shadow-xl 
+                            transition-all duration-200 font-semibold text-lg disabled:bg-gray-600 
+                            professional-glow flex items-center gap-2"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>Submit Answer <span>→</span></>
+                          )}
+                        </motion.button>
+                        <motion.button
+                          onClick={() => {
+                            const questionId = getCurrentQuestionId()
+                            const session = getCurrentSession()
+                            if (session?.audioBlob) URL.revokeObjectURL(session.audioBlob)
+                            updateQuestionSession(questionId, { 
+                              audioBlob: null, timeUsed: 0,
+                              transcript: null, transcriptionStatus: 'pending'
+                            })
+                          }}
+                          disabled={isSubmitting}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="glass glass-hover text-gray-300 py-4 px-10 rounded-xl 
+                            transition-all duration-200 font-semibold text-lg disabled:opacity-50"
+                        >
+                          Re-record
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {answers.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-green-500/10 border border-green-500/30 p-4 rounded-xl flex items-center gap-3"
+                  >
+                    <span className="text-2xl">✓</span>
+                    <div>
+                      <p className="text-sm font-medium text-green-400">
+                        {answers.length} answer(s) submitted
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {questions.length - answers.length} remaining
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+            </div>
           </motion.div>
         )}
         
@@ -1114,6 +1141,25 @@ function AIInterview() {
           </motion.div>
         )}
       </AnimatePresence>
+        </div>{/* end left column */}
+
+        {/* ── Right: persistent webcam panel ── */}
+        <div className="lg:w-72 xl:w-80 border-t lg:border-t-0 lg:border-l border-surface-border p-4 flex flex-col gap-3 bg-gray-900/40">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">
+            📷 Facial Analysis
+          </p>
+          <WebcamPanel
+            sessionId={sessionId}
+            active={step === 'interview'}
+          />
+          {step !== 'interview' && (
+            <p className="text-xs text-gray-600 text-center">
+              Analysis activates when the interview starts
+            </p>
+          )}
+        </div>
+
+      </div>{/* end two-column flex */}
     </div>
   )
 }
