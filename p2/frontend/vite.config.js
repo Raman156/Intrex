@@ -16,7 +16,7 @@ const devHeaders = {
     "font-src 'self' https://fonts.gstatic.com data:",
     "frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com",
     "worker-src 'self' blob:",
-    "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 ws://localhost:5173 ws://127.0.0.1:5173 https://*.googleapis.com https://*.google.com https://firebaseinstallations.googleapis.com https://www.googletagmanager.com",
+    "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 ws://localhost:8000 ws://127.0.0.1:8000 ws://localhost:5173 ws://127.0.0.1:5173 https://*.googleapis.com https://*.google.com https://firebaseinstallations.googleapis.com https://www.googletagmanager.com",
   ].join('; '),
 }
 

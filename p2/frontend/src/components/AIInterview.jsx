@@ -8,6 +8,7 @@ import { generateSessionSummary, createInterviewSessionResult, generatePerforman
 import { saveSessionResult } from '../services/sessionStorage'
 import { downloadHTMLReport, downloadTextReport, downloadJSONReport } from '../utils/pdfGenerator'
 import MicrophoneValidator from './MicrophoneValidator'
+import WebcamPanel from './WebcamPanel'
 import AudioRecorder from './AudioRecorder'
 import QuestionTimer from './QuestionTimer'
 import TranscriptionStatus from './TranscriptionStatus'
@@ -517,13 +518,18 @@ function AIInterview() {
   }, [])
 
   return (
-    <div className="glass rounded-2xl p-8 border border-surface-border">
+    <div className="glass rounded-2xl border border-surface-border overflow-hidden">
       {/* Microphone Validator Modal */}
       <MicrophoneValidator
         isVisible={showMicValidator}
         onValidationComplete={handleMicValidationComplete}
       />
-      
+
+      {/* Persistent two-column layout: content left, webcam right */}
+      <div className="flex flex-col lg:flex-row min-h-0">
+
+        {/* ── Left: all step content ── */}
+        <div className="flex-1 p-6 lg:p-8 min-w-0">
       <AnimatePresence mode="wait">
         {step === 'upload' && (
           <motion.div
@@ -807,155 +813,149 @@ function AIInterview() {
               </label>
             </div>
 
-            {/* Question Timer */}
-            <QuestionTimer
-              questionId={getCurrentQuestionId()}
-              allocatedTime={getCurrentSession()?.allocatedTime || 120}
-              onTimeUp={() => handleTimerComplete(getCurrentSession()?.allocatedTime || 120, false)}
-              onSkip={handleSkipQuestion}
-              onDone={handleQuestionDone}
-              strictMode={strictMode}
-              isRecording={isRecording}
-            />
-
-            {/* Question Card */}
-            <motion.div
-              key={currentQuestionIndex}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-6 border-2 border-blue-500/30"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center 
-                  flex-shrink-0 professional-glow">
-                  <span className="text-white font-bold">Q{currentQuestionIndex + 1}</span>
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
-                      {questions[currentQuestionIndex].type}
-                    </span>
-                    <span className="text-xs px-3 py-1 bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
-                      {formatTime(getCurrentSession()?.allocatedTime || 120)} allocated
-                    </span>
-                    {isSpeaking && (
-                      <span className="text-xs px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full border border-purple-500/30 flex items-center gap-1">
-                        <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
-                        Speaking...
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-lg font-medium text-white leading-relaxed">
-                    {questions[currentQuestionIndex].question}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => speakQuestion(questions[currentQuestionIndex].question)}
-                    className="mt-3 flex items-center gap-2 text-xs text-gray-400 hover:text-purple-400 transition-colors"
-                  >
-                    <span>🔊</span> Replay question
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Recording Section */}
-            <AudioRecorder
-              questionId={getCurrentQuestionId()}
-              onRecordingComplete={handleRecordingComplete}
-              isRecording={isRecording}
-              onStartRecording={() => { setIsRecording(true); setTtsReady(false) }}
-              onStopRecording={() => setIsRecording(false)}
-              autoStart={ttsReady}
-            />
-            
-            {/* Submit Section */}
-            {!isRecording && getCurrentSession()?.audioBlob && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-4"
-              >
-                {/* Transcription Status */}
-                <TranscriptionStatus 
-                  session={getCurrentSession()} 
-                  className="max-w-2xl mx-auto"
+            {/* Interview content */}
+            <div className="space-y-6">
+                {/* Question Timer */}
+                <QuestionTimer
+                  questionId={getCurrentQuestionId()}
+                  allocatedTime={getCurrentSession()?.allocatedTime || 120}
+                  onTimeUp={() => handleTimerComplete(getCurrentSession()?.allocatedTime || 120, false)}
+                  onSkip={handleSkipQuestion}
+                  onDone={handleQuestionDone}
+                  strictMode={strictMode}
+                  isRecording={isRecording}
                 />
-                
-                <div className="glass rounded-2xl p-8 text-center border border-surface-border">
-                  <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-4xl">✓</span>
+
+                {/* Question Card */}
+                <motion.div
+                  key={currentQuestionIndex}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="glass rounded-2xl p-6 border-2 border-blue-500/30"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center 
+                      flex-shrink-0 professional-glow">
+                      <span className="text-white font-bold">Q{currentQuestionIndex + 1}</span>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
+                          {questions[currentQuestionIndex].type}
+                        </span>
+                        <span className="text-xs px-3 py-1 bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
+                          {formatTime(getCurrentSession()?.allocatedTime || 120)} allocated
+                        </span>
+                        {isSpeaking && (
+                          <span className="text-xs px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full border border-purple-500/30 flex items-center gap-1">
+                            <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+                            Speaking...
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-lg font-medium text-white leading-relaxed">
+                        {questions[currentQuestionIndex].question}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => speakQuestion(questions[currentQuestionIndex].question)}
+                        className="mt-3 flex items-center gap-2 text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                      >
+                        <span>🔊</span> Replay question
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-green-400 mb-2 text-lg font-semibold">Answer Recorded!</p>
-                  <p className="text-gray-400 mb-6">
-                    Time used: {formatTime(getCurrentSession()?.timeUsed || 0)}
-                  </p>
-                  <div className="flex gap-4 justify-center">
-                    <motion.button
-                      onClick={handleSubmitAnswer}
-                      disabled={isSubmitting}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-gradient-accent text-white py-4 px-10 rounded-xl hover:shadow-xl 
-                        transition-all duration-200 font-semibold text-lg disabled:bg-gray-600 
-                        professional-glow flex items-center gap-2"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          Submit Answer
-                          <span>→</span>
-                        </>
-                      )}
-                    </motion.button>
-                    <motion.button
-                      onClick={() => {
-                        const questionId = getCurrentQuestionId()
-                        const session = getCurrentSession()
-                        if (session?.audioBlob) {
-                          URL.revokeObjectURL(session.audioBlob)
-                        }
-                        updateQuestionSession(questionId, { 
-                          audioBlob: null, 
-                          timeUsed: 0,
-                          transcript: null,
-                          transcriptionStatus: 'pending'
-                        })
-                      }}
-                      disabled={isSubmitting}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="glass glass-hover text-gray-300 py-4 px-10 rounded-xl 
-                        transition-all duration-200 font-semibold text-lg disabled:opacity-50"
-                    >
-                      Re-record
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            
-            {answers.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-green-500/10 border border-green-500/30 p-4 rounded-xl flex items-center gap-3"
-              >
-                <span className="text-2xl">✓</span>
-                <div>
-                  <p className="text-sm font-medium text-green-400">
-                    {answers.length} answer(s) submitted
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {questions.length - answers.length} remaining
-                  </p>
-                </div>
-              </motion.div>
-            )}
+                </motion.div>
+
+                {/* Recording Section */}
+                <AudioRecorder
+                  questionId={getCurrentQuestionId()}
+                  onRecordingComplete={handleRecordingComplete}
+                  isRecording={isRecording}
+                  onStartRecording={() => { setIsRecording(true); setTtsReady(false) }}
+                  onStopRecording={() => setIsRecording(false)}
+                  autoStart={ttsReady}
+                />
+
+                {/* Submit Section */}
+                {!isRecording && getCurrentSession()?.audioBlob && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="space-y-4"
+                  >
+                    <TranscriptionStatus 
+                      session={getCurrentSession()} 
+                      className="max-w-2xl mx-auto"
+                    />
+                    <div className="glass rounded-2xl p-8 text-center border border-surface-border">
+                      <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-4xl">✓</span>
+                      </div>
+                      <p className="text-green-400 mb-2 text-lg font-semibold">Answer Recorded!</p>
+                      <p className="text-gray-400 mb-6">
+                        Time used: {formatTime(getCurrentSession()?.timeUsed || 0)}
+                      </p>
+                      <div className="flex gap-4 justify-center">
+                        <motion.button
+                          onClick={handleSubmitAnswer}
+                          disabled={isSubmitting}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="bg-gradient-accent text-white py-4 px-10 rounded-xl hover:shadow-xl 
+                            transition-all duration-200 font-semibold text-lg disabled:bg-gray-600 
+                            professional-glow flex items-center gap-2"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>Submit Answer <span>→</span></>
+                          )}
+                        </motion.button>
+                        <motion.button
+                          onClick={() => {
+                            const questionId = getCurrentQuestionId()
+                            const session = getCurrentSession()
+                            if (session?.audioBlob) URL.revokeObjectURL(session.audioBlob)
+                            updateQuestionSession(questionId, { 
+                              audioBlob: null, timeUsed: 0,
+                              transcript: null, transcriptionStatus: 'pending'
+                            })
+                          }}
+                          disabled={isSubmitting}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="glass glass-hover text-gray-300 py-4 px-10 rounded-xl 
+                            transition-all duration-200 font-semibold text-lg disabled:opacity-50"
+                        >
+                          Re-record
+                        </motion.button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {answers.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-green-500/10 border border-green-500/30 p-4 rounded-xl flex items-center gap-3"
+                  >
+                    <span className="text-2xl">✓</span>
+                    <div>
+                      <p className="text-sm font-medium text-green-400">
+                        {answers.length} answer(s) submitted
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {questions.length - answers.length} remaining
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+            </div>
           </motion.div>
         )}
         
@@ -1030,6 +1030,25 @@ function AIInterview() {
           </motion.div>
         )}
       </AnimatePresence>
+        </div>{/* end left column */}
+
+        {/* ── Right: persistent webcam panel ── */}
+        <div className="lg:w-72 xl:w-80 border-t lg:border-t-0 lg:border-l border-surface-border p-4 flex flex-col gap-3 bg-gray-900/40">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center">
+            📷 Facial Analysis
+          </p>
+          <WebcamPanel
+            sessionId={sessionId}
+            active={step === 'interview'}
+          />
+          {step !== 'interview' && (
+            <p className="text-xs text-gray-600 text-center">
+              Analysis activates when the interview starts
+            </p>
+          )}
+        </div>
+
+      </div>{/* end two-column flex */}
     </div>
   )
 }

@@ -55,7 +55,6 @@ qrcode[pil]==7.4.2
 # ─── Video Processing (optional — disabled by default) ────────────────────────
 # These are large and slow to install. The video routers are disabled in main.py.
 # Uncomment only if you need video analysis features.
-# opencv-python==4.9.0.80
-# mediapipe==0.10.32
-# deepface==0.0.99
-# tf-keras==2.20.1
+opencv-python>=4.9.0
+deepface>=0.0.93
+tf-keras>=2.16.0

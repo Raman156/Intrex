@@ -13,9 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from routers import ai_interview, auth, mfa, qr, upload, results
-# live router remains disabled (requires heavy video deps + WebSocket session state)
-# from routers import live
+from routers import ai_interview, auth, mfa, qr, upload, results, live
 from database import engine, Base
 
 # Create database tables
@@ -52,8 +50,7 @@ app.include_router(qr.router, prefix="/api", tags=["qr"])
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(results.router, prefix="/api", tags=["results"])
 app.include_router(ai_interview.router, prefix="/api", tags=["ai-interview"])
-# live router disabled (requires opencv, mediapipe, whisper + WebSocket session state)
-# app.include_router(live.router, prefix="/api", tags=["live"])
+app.include_router(live.router, prefix="/api", tags=["live"])
 
 @app.get("/")
 def read_root():
