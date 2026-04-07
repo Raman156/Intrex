@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { auth } from '../config/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/authStorage'
-import { syncFirebaseUser } from '../api/api'
+import { syncFirebaseUser, googleLogin } from '../api/api'
 
 const AuthContext = createContext()
 
@@ -21,7 +21,6 @@ export const AuthProvider = ({ children }) => {
       if (storedToken && storedUser) {
         try {
           const userData = JSON.parse(storedUser)
-          console.log('User loaded from localStorage:', userData.email)
           setUser(userData)
         } catch (err) {
           console.error('Error parsing stored user:', err)
@@ -42,47 +41,72 @@ export const AuthProvider = ({ children }) => {
         try {
           if (firebaseUser) {
             // User is logged in
-            console.log('User logged in:', firebaseUser.email)
             
             // Check if user is new (created in last 5 seconds)
             const createdAt = firebaseUser.metadata?.creationTime
             const now = new Date()
             const isNew = createdAt && (now - new Date(createdAt)) < 5000
             
-            console.log('User metadata:', {
-              createdAt,
-              isNew,
-              timeDiff: createdAt ? now - new Date(createdAt) : 'N/A'
-            })
-            
             setIsNewUser(isNew)
             
             const idToken = await firebaseUser.getIdToken()
             
-            // Sync user to local DB (creates record if first login)
-            await syncFirebaseUser(idToken)
-            
-            // Store user info
-            const userData = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              idToken: idToken,
-              isNew: isNew,
-            }
-            
-            setUser(userData)
+            // Get backend JWT token for API authentication
+            try {
+              const loginResponse = await syncFirebaseUser(idToken)
+              const backendToken = loginResponse.access_token
+              
+              // Store user info
+              const userData = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                idToken: idToken,
+                isNew: isNew,
+                dbId: loginResponse.user.id, // Add database ID
+              }
+              
+              setUser(userData)
 
-            // Store token for API calls.
-            setAuthToken(idToken)
-            localStorage.setItem('user', JSON.stringify({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              isNew: isNew,
-            }))
+              // Store backend JWT token for API calls
+              setAuthToken(backendToken)
+              localStorage.setItem('user', JSON.stringify({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                isNew: isNew,
+                dbId: loginResponse.user.id,
+              }))
+              
+              // Store new user flag for redirect
+              if (isNew) {
+                localStorage.setItem('newUserRedirect', 'true')
+              }
+            } catch (loginError) {
+              console.error('Backend login failed:', loginError)
+              // Fallback: store Firebase token (might not work with protected endpoints)
+              setAuthToken(idToken)
+              
+              const userData = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                idToken: idToken,
+                isNew: isNew,
+              }
+              
+              setUser(userData)
+              localStorage.setItem('user', JSON.stringify({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                isNew: isNew,
+              }))
+            }
             
             // Store new user flag for redirect
             if (isNew) {
@@ -90,7 +114,6 @@ export const AuthProvider = ({ children }) => {
             }
           } else {
             // User is logged out
-            console.log('User logged out')
             setUser(null)
             setIsNewUser(false)
             clearAuthToken()

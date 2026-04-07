@@ -1,6 +1,7 @@
 """
 Authentication router for user registration, login, and profile management
 """
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -23,6 +24,7 @@ from utils.auth import (
 )
 from utils.file_validation import FileValidator
 from services.resume_analyzer import ResumeAnalyzer
+from utils.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -304,8 +306,9 @@ def google_login(request: GoogleLoginRequest, db: Session = Depends(get_db)):
 @router.post("/firebase-sync")
 def firebase_sync(request: GoogleLoginRequest, db: Session = Depends(get_db)):
     """
-    Sync a Firebase-authenticated user into the local DB.
+    Sync a Firebase-authenticated user into the local DB and return JWT token.
     Accepts a Firebase ID token, extracts user info, and upserts the user record.
+    Returns a JWT token for API authentication.
     """
     from google.oauth2 import id_token as google_id_token
     from google.auth.transport import requests as google_requests
@@ -377,7 +380,18 @@ def firebase_sync(request: GoogleLoginRequest, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-    return {"message": "User synced", "db_id": user.id, "email": user.email}
+    # Create JWT access token for the application
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user,
+        "message": "User synced and authenticated"
+    }
 
 
 def get_current_user_profile(current_user: User = Depends(get_current_active_user)):
@@ -435,17 +449,41 @@ async def upload_resume(
     # Extract text from file
     resume_text = ""
     try:
-        if file_ext == ".pdf":
-            resume_text = extract_text_from_pdf(file_path)
-        elif file_ext in [".doc", ".docx"]:
-            resume_text = extract_text_from_docx(file_path)
-        elif file_ext == ".txt":
-            with open(file_path, "r", encoding="utf-8") as f:
-                resume_text = f.read()
+        try:
+            if file_ext == ".pdf":
+                resume_text = extract_text_from_pdf(file_path)
+            elif file_ext in [".doc", ".docx"]:
+                resume_text = extract_text_from_docx(file_path)
+            elif file_ext == ".txt":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    resume_text = f.read()
+        except Exception as extract_error:
+            print(f"❌ Error extracting text from {file_ext}: {str(extract_error)}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error reading resume file: {str(extract_error)}"
+            )
+        
+        print(f"📄 Extracted resume text length: {len(resume_text)} characters")
+        print(f"   - After strip: {len(resume_text.strip())} characters")
         
         # Validate that we extracted some text
         if not resume_text or len(resume_text.strip()) < 50:
-            raise Exception("Resume appears to be empty or too short")
+            print(f"❌ Resume validation failed:")
+            print(f"   - File type: {file_ext}")
+            print(f"   - Raw length: {len(resume_text)}")
+            print(f"   - Stripped length: {len(resume_text.strip())}")
+            print(f"   - First 200 chars: {resume_text[:200] if resume_text else 'EMPTY'}")
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            raise HTTPException(
+                status_code=400,
+                detail=f"Resume appears to be empty or too short (minimum 50 characters required, got {len(resume_text.strip())})"
+            )
         
         # VALIDATE IF IT'S ACTUALLY A RESUME
         is_valid, error_message = ResumeAnalyzer.is_valid_resume(resume_text)
@@ -509,24 +547,233 @@ async def upload_resume(
     }
 
 
+@router.post("/upload-resume-anonymous", response_model=ResumeUploadResponse)
+async def upload_resume_anonymous(
+    file: UploadFile = File(None),
+    field: Optional[str] = Form(None),
+    _rl: None = Depends(rate_limit(auth_rpm=20, anon_rpm=5, endpoint_tag="resume-upload")),
+):
+    """Upload and analyze resume anonymously without requiring user authentication"""
+
+    if file is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No resume file provided. Please upload a file using multipart/form-data with field name 'file'."
+        )
+
+    print(f"📤 Anonymous resume upload request:")
+    print(f"   - File: {file.filename}")
+    print(f"   - Field parameter: '{field}' (type: {type(field).__name__})")
+
+    # Comprehensive file validation
+    await FileValidator.validate_resume(file)
+
+    # Sanitize filename
+    safe_filename = FileValidator.validate_filename(file.filename)
+    file_ext = os.path.splitext(safe_filename)[1].lower()
+
+    # Generate unique filename for anonymous upload
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    random_id = f"anon_{hash(timestamp + safe_filename) % 1000000:06d}"
+    filename = f"{random_id}_{timestamp}_{safe_filename}"
+    file_path = os.path.join(RESUME_UPLOAD_DIR, filename)
+
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error saving file: {str(e)}"
+        )
+
+    # Validate MIME type after saving (checks actual file content)
+    try:
+        from utils.file_validation import ALLOWED_RESUME_TYPES
+        FileValidator.validate_mime_type(file_path, ALLOWED_RESUME_TYPES)
+    except Exception as e:
+        # Clean up file if MIME validation fails
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
+
+    # Extract text from file
+    resume_text = ""
+    try:
+        try:
+            if file_ext == ".pdf":
+                resume_text = extract_text_from_pdf(file_path)
+            elif file_ext in [".doc", ".docx"]:
+                resume_text = extract_text_from_docx(file_path)
+            elif file_ext == ".txt":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    resume_text = f.read()
+        except Exception as extract_error:
+            print(f"❌ Error extracting text from {file_ext}: {str(extract_error)}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Error reading resume file: {str(extract_error)}"
+            )
+
+        print(f"📄 Extracted resume text length: {len(resume_text)} characters")
+        print(f"   - After strip: {len(resume_text.strip())} characters")
+
+        # Validate that we extracted some text
+        if not resume_text or len(resume_text.strip()) < 50:
+            print(f"❌ Resume validation failed:")
+            print(f"   - File type: {file_ext}")
+            print(f"   - Raw length: {len(resume_text)}")
+            print(f"   - Stripped length: {len(resume_text.strip())}")
+            print(f"   - First 200 chars: {resume_text[:200] if resume_text else 'EMPTY'}")
+            
+            # Clean up file since it's invalid
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            raise HTTPException(
+                status_code=400,
+                detail=f"Resume appears to be empty or too short (minimum 50 characters required, got {len(resume_text.strip())})"
+            )
+
+        # VALIDATE IF IT'S ACTUALLY A RESUME
+        is_valid, error_message = ResumeAnalyzer.is_valid_resume(resume_text)
+        if not is_valid:
+            # Clean up file if it's not a valid resume
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail=error_message
+            )
+
+        # ANALYZE RESUME CONTENT
+        print(f"📊 Analyzing anonymous resume with field: {field if field else 'None (generic)'}")
+        analysis = ResumeAnalyzer.analyze_resume(resume_text, field)
+
+        print(f"✅ Anonymous resume validated and analyzed:")
+        print(f"   - Field: {field if field else 'Generic'}")
+        print(f"   - Overall Score: {analysis['overall']}/100")
+        print(f"   - Structure: {analysis['structure']}/100")
+        print(f"   - Skills: {analysis['skills']}/100")
+        print(f"   - Experience: {analysis['experience']}/100")
+        print(f"   - Keywords: {analysis['keywords']}/100")
+        if analysis.get('field_specific'):
+            print(f"   - Matched Skills: {analysis['field_specific'].get('matched_count', 0)}")
+            print(f"   - Missing Critical: {len(analysis['field_specific'].get('missing_critical', []))}")
+
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Clean up file if parsing fails
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error parsing resume: {str(e)}"
+        )
+
+    # For anonymous uploads, we'll keep the file for a limited time
+    # In a production app, you'd want to clean these up periodically
+    uploaded_at = datetime.utcnow()
+
+    return {
+        "success": True,
+        "message": "Resume uploaded and analyzed successfully",
+        "filename": filename,
+        "resume_text": resume_text[:500] + "..." if len(resume_text) > 500 else resume_text,
+        "extracted_text": resume_text[:500] + "..." if len(resume_text) > 500 else resume_text,
+        "uploaded_at": uploaded_at,
+        "analysis": analysis,
+        "anonymous": True
+    }
+
+
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text from PDF file"""
+    """Extract text from PDF file with fallback methods"""
     text = ""
+    page_count = 0
+    
     try:
         with open(file_path, "rb") as file:
             pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
-                text += page.extract_text()
+            page_count = len(pdf_reader.pages)
+            print(f"   📄 PDF has {page_count} pages")
+            
+            for page_num, page in enumerate(pdf_reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text is None:
+                        page_text = ""
+                    text += page_text
+                    print(f"      - Page {page_num + 1}: {len(page_text)} characters extracted")
+                except Exception as page_error:
+                    print(f"      - Page {page_num + 1} extraction error: {str(page_error)}")
+                    continue
+            
+            print(f"   Total PDF text extracted: {len(text)} characters")
+
+            if not text or len(text.strip()) == 0:
+                print("   ❗ No text extracted from PDF; attempting OCR fallback if available...")
+                ocr_text = _extract_text_from_scanned_pdf(file_path)
+                if ocr_text and len(ocr_text.strip()) > 0:
+                    print(f"   ✅ OCR fallback extracted {len(ocr_text)} characters")
+                    return ocr_text
+                raise Exception(f"No text could be extracted from {page_count} pages. The PDF may be scanned or image-based.")
+                
     except Exception as e:
         raise Exception(f"Error reading PDF: {str(e)}")
+    
     return text
+
+
+def _extract_text_from_scanned_pdf(file_path: str) -> str:
+    """Attempt OCR extraction from scanned/image-only PDF pages"""
+    try:
+        from pdf2image import convert_from_path
+        import pytesseract
+    except ImportError as e:
+        print(f"   ⚠️ OCR fallback libraries not installed: {str(e)}")
+        return ""
+
+    ocr_text = ""
+    try:
+        # Convert each page to an image and OCR
+        pages = convert_from_path(file_path, dpi=300)
+        print(f"   🖼️ OCR fallback: converted {len(pages)} pages to images")
+
+        for i, page_image in enumerate(pages):
+            try:
+                page_text = pytesseract.image_to_string(page_image, lang='eng')
+                ocr_text += page_text + "\n"
+                print(f"      - OCR page {i + 1}: {len(page_text)} characters")
+            except Exception as img_err:
+                print(f"      - OCR page {i + 1} error: {str(img_err)}")
+                continue
+
+    except Exception as e:
+        print(f"   OCR conversion failed: {str(e)}")
+        return ""
+
+    return ocr_text
 
 
 def extract_text_from_docx(file_path: str) -> str:
     """Extract text from DOCX file"""
     try:
         doc = docx.Document(file_path)
-        text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+        paragraphs = [paragraph.text for paragraph in doc.paragraphs]
+        text = "\n".join(paragraphs)
+        print(f"   📄 DOCX extracted {len(paragraphs)} paragraphs, {len(text)} total characters")
+        
+        if not text or len(text.strip()) == 0:
+            raise Exception("No text could be extracted from DOCX file")
+            
     except Exception as e:
         raise Exception(f"Error reading DOCX: {str(e)}")
+    
     return text

@@ -72,6 +72,7 @@ function App() {
                   <Route path="/interview-results/:sessionId" element={<InterviewResults />} />
                   <Route path="/home" element={<Home />} />
                   <Route path="/upload" element={<Upload />} />
+                  <Route path="/enhanced-resume-upload" element={<EnhancedResumeUpload />} />
                   <Route path="/video-upload" element={<VideoUpload />} />
                   <Route path="/test-upload" element={<TestUpload />} />
                   <Route path="/dashboard" element={<Dashboard />} />

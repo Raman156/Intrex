@@ -4,12 +4,34 @@ Extracts speech and acoustic metrics from video audio
 """
 import subprocess
 import os
+import shutil
 import whisper
 import librosa
 import numpy as np
 from typing import Dict
 import re
-import shutil
+
+# ── Ensure bundled FFmpeg is on PATH so Whisper can find it ──────────────────
+def _ensure_ffmpeg_on_path():
+    if shutil.which("ffmpeg"):
+        return  # already available
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        # The bundled binary has a versioned name (e.g. ffmpeg-win-x86_64-v7.1.exe)
+        # Whisper calls "ffmpeg" literally, so we copy it as ffmpeg.exe into a temp dir
+        ffmpeg_dir = os.path.join(os.path.dirname(ffmpeg_exe), "_ffmpeg_alias")
+        os.makedirs(ffmpeg_dir, exist_ok=True)
+        alias_path = os.path.join(ffmpeg_dir, "ffmpeg.exe")
+        if not os.path.exists(alias_path):
+            import shutil as _sh
+            _sh.copy2(ffmpeg_exe, alias_path)
+        os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+        print(f"✓ FFmpeg alias created and added to PATH: {alias_path}")
+    except Exception as e:
+        print(f"⚠ Could not set up bundled FFmpeg: {e}")
+
+_ensure_ffmpeg_on_path()
 
 # Load Whisper model (base model for CPU compatibility)
 whisper_model = None
@@ -113,6 +135,13 @@ def extract_audio(video_path: str, audio_path: str):
             if os.path.exists(path):
                 ffmpeg_cmd = path
                 break
+
+    if not ffmpeg_cmd:
+        try:
+            import imageio_ffmpeg
+            ffmpeg_cmd = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            pass
 
     if not ffmpeg_cmd:
         raise RuntimeError(

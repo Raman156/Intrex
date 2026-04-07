@@ -125,7 +125,9 @@ class ResumeAnalyzer:
             'has_projects': 'project' in text_lower,
             'has_certifications': 'certification' in text_lower or 'certificate' in text_lower,
             'word_count': len(text.split()),
-            'field_specific': field_insights  # Add field-specific insights
+            'field_specific': field_insights,
+            'ats_score': ResumeAnalyzer._calculate_ats_score(overall_score, field_insights),
+            'skill_impact': ResumeAnalyzer._calculate_skill_impact(field_insights),
         }
     
     @staticmethod
@@ -173,10 +175,17 @@ class ResumeAnalyzer:
         }
         
         if not field or field not in field_keywords:
-            # Generic skills check
-            generic_skills = ['communication', 'leadership', 'teamwork', 'problem solving', 'analytical']
-            matches = [skill for skill in generic_skills if skill in text]
-            score = min(100, 60 + (len(matches) * 8))
+            # Generic skills check — scan for common tech skills
+            generic_tech = [
+                'python', 'javascript', 'java', 'react', 'node', 'sql', 'git',
+                'html', 'css', 'typescript', 'docker', 'aws', 'linux', 'api',
+                'mongodb', 'postgresql', 'django', 'flask', 'fastapi', 'spring',
+                'machine learning', 'tensorflow', 'pytorch', 'pandas', 'numpy',
+                'agile', 'scrum', 'jira', 'figma', 'kubernetes', 'ci/cd',
+                'communication', 'leadership', 'teamwork', 'problem solving'
+            ]
+            matches = [skill for skill in generic_tech if skill in text]
+            score = min(100, 50 + (len(matches) * 3))
             return score, matches
         
         # Field-specific skills check
@@ -321,6 +330,43 @@ class ResumeAnalyzer:
             'has_quantifiable_impact': has_strong_verbs >= 3
         }
     
+    @staticmethod
+    def _calculate_ats_score(overall_score: int, field_insights: dict) -> int:
+        """
+        Derive an ATS compatibility score.
+        ATS cares about: keyword density, missing critical skills, formatting signals.
+        """
+        base = overall_score
+        missing_critical = len(field_insights.get('missing_critical', []))
+        matched_count = field_insights.get('matched_count', 0)
+
+        # Penalise for each missing critical skill
+        penalty = min(30, missing_critical * 6)
+        # Bonus for high skill match
+        bonus = min(10, matched_count // 3)
+        return max(0, min(100, base - penalty + bonus))
+
+    @staticmethod
+    def _calculate_skill_impact(field_insights: dict) -> list:
+        """
+        Return a list of {skill, score_boost} for missing skills,
+        so the frontend can show "+ Add Docker → +6 ATS score".
+        """
+        impact = []
+        missing_critical = field_insights.get('missing_critical', [])
+        missing_advanced = field_insights.get('missing_advanced', [])
+
+        for skill in missing_critical[:5]:
+            impact.append({'skill': skill, 'boost': 6, 'priority': 'critical'})
+        for skill in missing_advanced[:4]:
+            impact.append({'skill': skill, 'boost': 3, 'priority': 'recommended'})
+
+        # Generic structural improvements
+        if not field_insights.get('has_quantifiable_impact', False):
+            impact.append({'skill': 'Quantifiable achievements', 'boost': 5, 'priority': 'recommended'})
+
+        return impact[:8]
+
     @staticmethod
     def _calculate_experience_score(text: str) -> float:
         """Calculate experience quality score"""

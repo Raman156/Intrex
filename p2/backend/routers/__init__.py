@@ -8,3 +8,4 @@ from . import ai_interview
 from . import auth
 from . import mfa
 from . import qr
+from . import advanced_resume

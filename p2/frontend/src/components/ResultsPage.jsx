@@ -1,14 +1,174 @@
 import { motion } from 'framer-motion'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import CircularScore from './CircularScore'
 import RadarChart from './RadarChart'
 import QuestionAccordion from './QuestionAccordion'
 import SessionSummary from './SessionSummary'
+
+const EMOTION_EMOJI = {
+  happy: '😊', sad: '😢', angry: '😠', fear: '😨',
+  surprise: '😲', disgust: '🤢', neutral: '😐'
+}
+const EMOTION_COLOR_MAP = {
+  happy: '#22c55e', neutral: '#94a3b8', sad: '#60a5fa',
+  angry: '#ef4444', fear: '#a855f7', surprise: '#f59e0b', disgust: '#f97316'
+}
+
+function FacialAnalysisSection({ facialAnalysis }) {
+  if (!facialAnalysis) return null
+
+  const { emotionHistory = [], emotionSummary } = facialAnalysis
+
+  // Build distribution from local emotion history if no server summary yet
+  const buildDistribution = () => {
+    if (emotionSummary?.distribution && Object.keys(emotionSummary.distribution).length > 0) {
+      return emotionSummary.distribution
+    }
+    if (!emotionHistory.length) return null
+    const counts = {}
+    emotionHistory.forEach(e => { counts[e.emotion] = (counts[e.emotion] || 0) + 1 })
+    const total = emotionHistory.length
+    return Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, +(v / total * 100).toFixed(1)]))
+  }
+
+  const distribution = buildDistribution()
+  const dominant = emotionSummary?.dominant || (emotionHistory[emotionHistory.length - 1]?.emotion) || null
+  const nervousness = emotionSummary?.nervousness_score ?? null
+  const positivity = emotionSummary?.positivity_score ?? null
+
+  const chartData = distribution
+    ? Object.entries(distribution)
+        .sort((a, b) => b[1] - a[1])
+        .map(([emotion, pct]) => ({ emotion, pct, fill: EMOTION_COLOR_MAP[emotion] || '#64748b' }))
+    : []
+
+  if (!chartData.length && !facialAnalysis?.avgMetrics) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.5 }}
+      className="glass rounded-2xl p-6 border border-surface-border space-y-5"
+    >
+      <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+        <span>🎭</span> Facial & Emotion Analysis
+      </h2>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Emotion distribution bar chart */}
+        <div>
+          <p className="text-sm text-gray-400 mb-3">Emotion Distribution</p>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+              <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`}
+                tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="emotion" width={70}
+                tick={{ fill: '#e2e8f0', fontSize: 12 }} axisLine={false} tickLine={false}
+                tickFormatter={e => `${EMOTION_EMOJI[e] || ''} ${e}`} />
+              <Tooltip
+                formatter={(v) => [`${v}%`, 'Share']}
+                contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
+                labelStyle={{ color: '#e2e8f0' }}
+              />
+              <Bar dataKey="pct" radius={[0, 4, 4, 0]}>
+                {chartData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Derived scores */}
+        <div className="space-y-4">
+          {dominant && (
+            <div className="bg-slate-800/60 rounded-xl p-4 flex items-center gap-3">
+              <span className="text-3xl">{EMOTION_EMOJI[dominant] || '🎭'}</span>
+              <div>
+                <p className="text-xs text-gray-400">Dominant Emotion</p>
+                <p className="text-lg font-semibold text-white capitalize">{dominant}</p>
+              </div>
+            </div>
+          )}
+
+          {nervousness !== null && (
+            <div>
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>😰 Nervousness Score</span>
+                <span className={nervousness > 40 ? 'text-red-400' : nervousness > 20 ? 'text-amber-400' : 'text-green-400'}>
+                  {nervousness.toFixed(0)}%
+                </span>
+              </div>
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${nervousness > 40 ? 'bg-red-500' : nervousness > 20 ? 'bg-amber-400' : 'bg-green-500'}`}
+                  style={{ width: `${nervousness}%` }} />
+              </div>
+            </div>
+          )}
+
+          {positivity !== null && (
+            <div>
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>😊 Positivity Score</span>
+                <span className="text-green-400">{positivity.toFixed(0)}%</span>
+              </div>
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-green-500 transition-all"
+                  style={{ width: `${positivity}%` }} />
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500 pt-1">
+            Based on {emotionHistory.length} emotion samples captured during the interview.
+          </p>
+        </div>
+      </div>
+
+      {/* Avg facial metrics grid */}
+      {facialAnalysis?.avgMetrics && (() => {
+        const m = facialAnalysis.avgMetrics
+        const pct = v => Math.round((v || 0) * 100)
+        const items = [
+          { label: 'Eye Contact',    value: pct(m.eye_contact),    color: '#3b82f6', icon: '👁' },
+          { label: 'Head Stability', value: pct(m.head_stability), color: '#22c55e', icon: '🧠' },
+          { label: 'Engagement',     value: pct(m.engagement),     color: '#a855f7', icon: '⚡' },
+          { label: 'Attention',      value: pct(m.attention),      color: '#06b6d4', icon: '🎯' },
+          { label: 'Centering',      value: pct(m.centering),      color: '#f59e0b', icon: '📐' },
+        ]
+        return (
+          <div>
+            <p className="text-sm text-gray-400 mb-3">Session Averages</p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {items.map(({ label, value, color, icon }) => (
+                <div key={label} className="bg-slate-800/60 rounded-xl p-3 text-center">
+                  <div className="text-xl mb-1">{icon}</div>
+                  <div className="text-2xl font-bold text-white">{value}%</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+                  <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, backgroundColor: color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            {m.avg_blink_rate > 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                Avg blink rate: <span className={`font-medium ${m.avg_blink_rate < 10 ? 'text-amber-400' : m.avg_blink_rate > 30 ? 'text-red-400' : 'text-green-400'}`}>{m.avg_blink_rate} bpm</span>
+                {m.avg_blink_rate < 10 ? ' — low (possible stress)' : m.avg_blink_rate > 30 ? ' — high (possible nervousness)' : ' — normal range'}
+              </p>
+            )}
+          </div>
+        )
+      })()}
+    </motion.div>
+  )
+}
 
 function ResultsPage({ 
   overallResults, 
   answers, 
   sessionSummary, 
   performanceInsights,
+  facialAnalysis,
   onRetryInterview,
   onGoToDashboard,
   onDownloadReport,
@@ -103,6 +263,9 @@ function ResultsPage({
           </div>
         </motion.div>
       </div>
+
+      {/* Facial & Emotion Analysis */}
+      <FacialAnalysisSection facialAnalysis={facialAnalysis} />
 
       {/* Summary Highlights */}
       {sessionSummary && (

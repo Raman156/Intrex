@@ -26,6 +26,7 @@ import Pricing from './pages/Pricing'
 import ComingSoon from './pages/ComingSoon'
 import Settings from './pages/Settings'
 import InterviewSelection from './pages/InterviewSelection'
+import EnhancedResumeUpload from './pages/EnhancedResumeUpload'
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
           <Route path="/interview-selection" element={<InterviewSelection />} />
           <Route path="/live-interview" element={<LiveInterview />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/enhanced-resume-upload" element={<EnhancedResumeUpload />} />
           <Route path="/video-upload" element={<VideoUpload />} />
           <Route path="/test-upload" element={<TestUpload />} />
           <Route path="/dashboard" element={<Dashboard />} />

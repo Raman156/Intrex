@@ -93,32 +93,72 @@ const MicHealthCheck: React.FC<MicHealthCheckProps> = ({
     }
   }, [])
 
-  const startAudioMonitoring = useCallback((stream: MediaStream) => {
+  const startAudioMonitoring = useCallback(async (stream: MediaStream) => {
     try {
+      console.log('Starting audio monitoring...')
+      
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      console.log('AudioContext state:', audioContextRef.current.state)
+      
+      // Resume AudioContext if suspended (required in modern browsers)
+      if (audioContextRef.current.state === 'suspended') {
+        try {
+          await audioContextRef.current.resume()
+          console.log('AudioContext resumed, new state:', audioContextRef.current.state)
+        } catch (resumeError) {
+          console.warn('Failed to resume AudioContext:', resumeError)
+          // Continue anyway, as some browsers may not require resume
+        }
+      }
+      
       analyserRef.current = audioContextRef.current.createAnalyser()
+      console.log('Analyser created')
 
       const source = audioContextRef.current.createMediaStreamSource(stream)
       source.connect(analyserRef.current)
+      console.log('Audio source connected to analyser')
 
       analyserRef.current.fftSize = 256
-      const bufferLength = analyserRef.current.frequencyBinCount
+      const bufferLength = analyserRef.current.fftSize
       const dataArray = new Uint8Array(bufferLength)
 
       const checkAudioLevel = () => {
         if (!analyserRef.current) return
 
-        analyserRef.current.getByteFrequencyData(dataArray)
+        try {
+          analyserRef.current.getByteTimeDomainData(dataArray)
 
-        // Calculate average volume
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength
-        const normalizedLevel = Math.min(average / 128, 1)
+          // Calculate RMS of time domain data for amplitude detection
+          let sum = 0
+          for (let i = 0; i < bufferLength; i++) {
+            const sample = (dataArray[i] - 128) / 128 // Convert to -1 to 1 range
+            sum += sample * sample
+          }
+          const rms = Math.sqrt(sum / bufferLength)
+          const normalizedLevel = Math.min(rms * 10, 1) // Amplify the signal
 
-        setState(prev => ({ ...prev, audioLevel: normalizedLevel }))
+          // Debug logging
+          if (normalizedLevel > 0.001) {
+            console.log('Audio detected! Level:', normalizedLevel)
+          }
 
-        // Check for audio activity (threshold of 0.01 for sensitivity)
-        if (normalizedLevel > 0.01) {
-          lastAudioTimeRef.current = Date.now()
+          setState(prev => ({ ...prev, audioLevel: normalizedLevel }))
+
+          // Even lower threshold for better sensitivity (was 0.005, now 0.001)
+          if (normalizedLevel > 0.001) {
+            lastAudioTimeRef.current = Date.now()
+          }
+        } catch (error) {
+          console.error('Error getting audio data:', error)
+          // Fallback: check if stream is active
+          if (streamRef.current && streamRef.current.active) {
+            const tracks = streamRef.current.getAudioTracks()
+            if (tracks.length > 0 && tracks[0].enabled) {
+              // If we have an active enabled track, assume audio is working
+              setState(prev => ({ ...prev, audioLevel: 0.1 }))
+              lastAudioTimeRef.current = Date.now()
+            }
+          }
         }
 
         animationFrameRef.current = requestAnimationFrame(checkAudioLevel)
@@ -126,17 +166,17 @@ const MicHealthCheck: React.FC<MicHealthCheckProps> = ({
 
       checkAudioLevel()
 
-      // Start silence detection after 2 seconds
+      // Start silence detection after 3 seconds (increased from 2)
       setTimeout(() => {
         const checkSilence = () => {
           const timeSinceLastAudio = Date.now() - lastAudioTimeRef.current
-          if (timeSinceLastAudio > 3000 && state.status === 'checking') {
+          if (timeSinceLastAudio > 5000 && state.status === 'checking') { // Increased from 3000 to 5000ms
             setState(prev => ({ ...prev, status: 'no-audio' }))
           }
           silenceTimeoutRef.current = setTimeout(checkSilence, 1000)
         }
         checkSilence()
-      }, 2000)
+      }, 3000)
 
     } catch (error) {
       console.error('Error setting up audio monitoring:', error)
@@ -152,6 +192,7 @@ const MicHealthCheck: React.FC<MicHealthCheckProps> = ({
     try {
       setState(prev => ({ ...prev, isRetrying: true, error: null }))
 
+      console.log('Requesting microphone access...')
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -160,19 +201,23 @@ const MicHealthCheck: React.FC<MicHealthCheckProps> = ({
         }
       })
 
+      console.log('Stream obtained:', stream)
+      console.log('Audio tracks:', stream.getAudioTracks().length)
+      console.log('Track enabled:', stream.getAudioTracks()[0]?.enabled)
+
       streamRef.current = stream
       startAudioMonitoring(stream)
 
-      // Wait 3 seconds to detect audio
+      // Wait 5 seconds to detect audio (increased from 3)
       setTimeout(() => {
         const timeSinceLastAudio = Date.now() - lastAudioTimeRef.current
-        if (timeSinceLastAudio <= 3000) {
+        if (timeSinceLastAudio <= 5000) { // Check if audio was detected within 5 seconds
           setState(prev => ({ ...prev, status: 'ready' }))
           setTimeout(() => {
             onValidationComplete(true)
           }, 1000)
         }
-      }, 3000)
+      }, 5000)
 
     } catch (error: any) {
       console.error('Microphone access error:', error)
@@ -250,7 +295,7 @@ const MicHealthCheck: React.FC<MicHealthCheckProps> = ({
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  {state.audioLevel > 0.01 ? 'Audio detected!' : 'Listening...'}
+                  {state.audioLevel > 0.001 ? 'Audio detected!' : 'Listening...'}
                 </p>
               </div>
 
@@ -326,17 +371,36 @@ const MicHealthCheck: React.FC<MicHealthCheckProps> = ({
                   <li>• Ensure the correct microphone is selected</li>
                   <li>• Try speaking louder or closer to the mic</li>
                   <li>• Check your system audio settings</li>
+                  <li>• Try refreshing the page and granting permissions again</li>
+                  <li>• Test your microphone in another application</li>
                 </ul>
               </div>
 
-              <button
-                onClick={retryAudioCheck}
-                disabled={state.isRetrying}
-                className="w-full bg-gradient-accent text-white py-3 px-6 rounded-xl hover:shadow-xl 
-                  transition-all duration-200 font-semibold disabled:bg-gray-600"
-              >
-                {state.isRetrying ? 'Checking...' : 'Retry Audio Check'}
-              </button>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={retryAudioCheck}
+                  disabled={state.isRetrying}
+                  className="flex-1 bg-gradient-accent text-white py-3 px-6 rounded-xl hover:shadow-xl 
+                    transition-all duration-200 font-semibold disabled:bg-gray-600 text-sm"
+                >
+                  {state.isRetrying ? 'Checking...' : 'Retry Audio Check'}
+                </button>
+                
+                <button
+                  onClick={() => onValidationComplete(true)}
+                  className="px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 
+                    transition-all duration-200 font-semibold text-sm"
+                >
+                  Skip Check
+                </button>
+              </div>
+
+              {/* Debug info */}
+              <div className="mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+                <div>Audio Level: {state.audioLevel.toFixed(4)}</div>
+                <div>Status: {state.status}</div>
+                <div>Time since last audio: {(Date.now() - lastAudioTimeRef.current) / 1000}s</div>
+              </div>
             </div>
           )}
 

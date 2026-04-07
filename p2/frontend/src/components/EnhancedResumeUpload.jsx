@@ -103,7 +103,10 @@ function EnhancedResumeUpload({ onUploadSuccess, onUploadError }) {
       }, 3000)
 
     } catch (err) {
-      const errorMessage = err.message || 'Upload failed. Please try again.'
+      const errorMessage =
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Upload failed. Please try again.'
       setError(errorMessage)
       
       if (onUploadError) {

@@ -13,15 +13,60 @@ from typing import Optional
 import time
 
 from database import get_db
-from services.video_processing import process_frame_facial
+from services.video_processing import process_frame_facial, reset_blink_tracker
 from services.audio_processing import process_audio
 from services.scoring_engine import compute_confidence_score, generate_feedback
 from models import Interview
 
 router = APIRouter()
 
+# Thread pool no longer needed — emotion runs in its own daemon thread inside video_processing
 # Store active sessions (in-memory for now, but with persistence fallback)
 active_sessions = {}
+
+
+def _compute_emotion_summary(emotions: list) -> dict:
+    """
+    Compute emotion distribution and derived scores from a list of emotion labels.
+    Returns a dict ready to send to the frontend.
+    """
+    if not emotions:
+        return {
+            "distribution": {},
+            "dominant": "neutral",
+            "nervousness_score": 0,
+            "positivity_score": 0,
+            "total_samples": 0,
+        }
+
+    from collections import Counter
+    counts = Counter(emotions)
+    total = len(emotions)
+
+    distribution = {emotion: round(count / total * 100, 1) for emotion, count in counts.items()}
+    dominant = counts.most_common(1)[0][0]
+
+    # Nervousness = fear + disgust + sad (weighted)
+    nervousness_score = round(
+        (distribution.get("fear", 0) * 1.0 +
+         distribution.get("disgust", 0) * 0.7 +
+         distribution.get("sad", 0) * 0.5) / 100 * 100, 1
+    )
+
+    # Positivity = happy + surprise (positive surprise)
+    positivity_score = round(
+        (distribution.get("happy", 0) * 1.0 +
+         distribution.get("surprise", 0) * 0.4) / 100 * 100, 1
+    )
+
+    return {
+        "distribution": distribution,
+        "dominant": dominant,
+        "nervousness_score": min(100, nervousness_score),
+        "positivity_score": min(100, positivity_score),
+        "total_samples": total,
+    }
+
 
 @router.websocket("/live")
 async def live_interview(websocket: WebSocket):
@@ -33,6 +78,8 @@ async def live_interview(websocket: WebSocket):
     await websocket.accept()
     print(f"WebSocket connection accepted")
     
+    reset_blink_tracker()  # fresh blink count per session
+
     session_id = None
     frame_count = 0
     accumulated_metrics = {
@@ -42,7 +89,12 @@ async def live_interview(websocket: WebSocket):
         "engagement": [],
         "face_detected": [],
         "centering": [],
-        "emotions": []  # Track emotions over time
+        "attention": [],
+        "blink_rates": [],
+        "head_yaw": [],
+        "head_pitch": [],
+        "emotions": [],
+        "emotion_history": [],
     }
     
     try:
@@ -73,64 +125,59 @@ async def live_interview(websocket: WebSocket):
                 img_bytes = base64.b64decode(message["frame"].split(",")[1])
                 nparr = np.frombuffer(img_bytes, np.uint8)
                 frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-                
-                # Process frame (sample every 3rd frame for better accuracy)
-                # Run emotion detection more frequently for better visibility
+
                 if frame_count % 3 == 0:
-                    detect_emotion = (frame_count % 6 == 0)  # Emotion every 6th frame (~1 second)
-                    metrics = process_frame_facial(frame, detect_emotion=detect_emotion)
-                    
+                    # process_frame_facial now handles emotion internally via background thread
+                    metrics = process_frame_facial(frame, detect_emotion=True)
+
                     if metrics:
                         accumulated_metrics["eye_contact"].append(metrics["eye_contact"])
                         accumulated_metrics["head_stability"].append(metrics["head_stability"])
-                        accumulated_metrics["smile"].append(metrics["smile"])
+                        accumulated_metrics["smile"].append(metrics.get("smile", 0))
                         accumulated_metrics["engagement"].append(metrics.get("engagement", 0.5))
                         accumulated_metrics["centering"].append(metrics.get("centering", 0.5))
+                        accumulated_metrics["attention"].append(metrics.get("attention", 0.5))
+                        accumulated_metrics["blink_rates"].append(metrics.get("blink_rate", 0))
+                        pose = metrics.get("head_pose", {})
+                        accumulated_metrics["head_yaw"].append(pose.get("yaw", 0))
+                        accumulated_metrics["head_pitch"].append(pose.get("pitch", 0))
                         accumulated_metrics["face_detected"].append(1)
-                        
-                        # Track emotion if available
-                        if "emotion" in metrics:
-                            accumulated_metrics["emotions"].append(metrics["emotion"])
-                            print(f"✅ Emotion detected: {metrics['emotion']} ({metrics.get('emotion_confidence', 0):.1f}%)")
-                            print(f"   Sending to frontend: {metrics['emotion']}")
-                        else:
-                            if detect_emotion:
-                                print(f"⚠️ Emotion detection ran but no emotion found (frame {frame_count})")
-                        
-                        # Send real-time feedback with enhanced metrics including emotion
+
                         response_data = {
-                            "eye_contact": metrics["eye_contact"],
+                            "eye_contact":    metrics["eye_contact"],
                             "head_stability": metrics["head_stability"],
-                            "smile": metrics["smile"],
-                            "engagement": metrics.get("engagement", 0.5),
-                            "centering": metrics.get("centering", 0.5)
+                            "smile":          metrics.get("smile", 0),
+                            "engagement":     metrics.get("engagement", 0.5),
+                            "centering":      metrics.get("centering", 0.5),
+                            "attention":      metrics.get("attention", 0.5),
+                            "blink_rate":     metrics.get("blink_rate", 0),
+                            "head_pose":      metrics.get("head_pose", {}),
+                            "mouth_open":     metrics.get("mouth_open", 0),
                         }
-                        
-                        # Add emotion data if available
+
+                        # Attach emotion if the background thread produced one
                         if "emotion" in metrics:
-                            response_data["emotion"] = str(metrics["emotion"])
-                            response_data["emotion_confidence"] = float(metrics.get("emotion_confidence", 0))
-                            # Convert all_emotions dict values to regular floats
-                            all_emotions = metrics.get("all_emotions", {})
-                            response_data["all_emotions"] = {k: float(v) for k, v in all_emotions.items()}
-                        
-                        await websocket.send_json({
-                            "type": "metrics",
-                            "data": response_data
-                        })
+                            label = metrics["emotion"]
+                            conf  = metrics.get("emotion_confidence", 0)
+                            scores = metrics.get("emotion_scores", {})
+                            accumulated_metrics["emotions"].append(label)
+                            accumulated_metrics["emotion_history"].append({
+                                "emotion": label, "confidence": conf, "ts": time.time()
+                            })
+                            response_data["emotion"]           = label
+                            response_data["emotion_confidence"] = conf
+                            response_data["all_emotions"]      = scores
+                            print(f"🎭 Emotion: {label} ({conf:.1f}%)")
+
+                        await websocket.send_json({"type": "metrics", "data": response_data})
                     else:
                         accumulated_metrics["face_detected"].append(0)
                         await websocket.send_json({
                             "type": "metrics",
-                            "data": {
-                                "eye_contact": 0,
-                                "head_stability": 0,
-                                "smile": 0,
-                                "engagement": 0,
-                                "no_face": True
-                            }
+                            "data": {"eye_contact": 0, "head_stability": 0,
+                                     "smile": 0, "engagement": 0, "no_face": True}
                         })
-                
+
                 frame_count += 1
             
     except WebSocketDisconnect:
@@ -145,11 +192,15 @@ async def live_interview(websocket: WebSocket):
             # Only calculate metrics if face was detected in at least 50% of frames
             if accumulated_metrics["eye_contact"] and face_presence >= 0.5:
                 final_metrics = {
-                    "eye_contact_score": float(np.mean(accumulated_metrics["eye_contact"])),
-                    "head_stability_score": float(np.mean(accumulated_metrics["head_stability"])),
-                    "smile_score": float(np.mean(accumulated_metrics["smile"])),
-                    "engagement_score": float(np.mean(accumulated_metrics["engagement"])),
-                    "face_presence_percentage": face_presence
+                    "eye_contact_score":      float(np.mean(accumulated_metrics["eye_contact"])),
+                    "head_stability_score":   float(np.mean(accumulated_metrics["head_stability"])),
+                    "smile_score":            float(np.mean(accumulated_metrics["smile"])),
+                    "engagement_score":       float(np.mean(accumulated_metrics["engagement"])),
+                    "attention_score":        float(np.mean(accumulated_metrics["attention"])) if accumulated_metrics["attention"] else 0.0,
+                    "avg_blink_rate":         float(np.mean(accumulated_metrics["blink_rates"])) if accumulated_metrics["blink_rates"] else 0.0,
+                    "avg_head_yaw":           float(np.mean(np.abs(accumulated_metrics["head_yaw"]))) if accumulated_metrics["head_yaw"] else 0.0,
+                    "avg_head_pitch":         float(np.mean(np.abs(accumulated_metrics["head_pitch"]))) if accumulated_metrics["head_pitch"] else 0.0,
+                    "face_presence_percentage": face_presence,
                 }
                 print(f"Valid metrics calculated - Face presence: {face_presence*100:.1f}%")
             else:
@@ -174,6 +225,10 @@ async def live_interview(websocket: WebSocket):
             
             active_sessions[session_id]["final_metrics"] = final_metrics
             active_sessions[session_id]["completed"] = True
+            active_sessions[session_id]["emotion_summary"] = _compute_emotion_summary(
+                accumulated_metrics["emotions"]
+            )
+            active_sessions[session_id]["emotion_history"] = accumulated_metrics["emotion_history"]
             print(f"Session {session_id} completed with metrics: {final_metrics}")
             print(f"Active sessions after disconnect: {list(active_sessions.keys())}")
     except Exception as e:
@@ -321,9 +376,13 @@ async def save_live_interview(
         
         # Calculate confidence score
         confidence_score = compute_confidence_score(facial_metrics, speech_metrics)
-        
+
         # Generate feedback
         strengths, improvements = generate_feedback(facial_metrics, speech_metrics)
+
+        # Emotion summary
+        emotion_summary = session_data.get("emotion_summary", _compute_emotion_summary([]))
+        emotion_history = session_data.get("emotion_history", [])
         
         # Save to database
         interview = Interview(
@@ -355,7 +414,14 @@ async def save_live_interview(
         return {
             "success": True,
             "interview_id": interview.id,
-            "confidence_score": confidence_score
+            "confidence_score": confidence_score,
+            "facial_analysis": {
+                "metrics": facial_metrics,
+                "emotion_summary": emotion_summary,
+                "emotion_history": emotion_history,
+                "strengths": strengths,
+                "improvements": improvements,
+            }
         }
         
     except Exception as e:

@@ -432,15 +432,35 @@ async def upload_resume(
 
 
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text from PDF file"""
+    """Extract text from PDF file with fallback methods"""
     text = ""
+    page_count = 0
+    
     try:
         with open(file_path, "rb") as file:
             pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
-                text += page.extract_text()
+            page_count = len(pdf_reader.pages)
+            print(f"   📄 PDF has {page_count} pages")
+            
+            for page_num, page in enumerate(pdf_reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text is None:
+                        page_text = ""
+                    text += page_text
+                    print(f"      - Page {page_num + 1}: {len(page_text)} characters extracted")
+                except Exception as page_error:
+                    print(f"      - Page {page_num + 1} extraction error: {str(page_error)}")
+                    continue
+            
+            print(f"   Total PDF text extracted: {len(text)} characters")
+            
+            if not text or len(text.strip()) == 0:
+                raise Exception(f"No text could be extracted from {page_count} pages. The PDF may be scanned or image-based.")
+                
     except Exception as e:
         raise Exception(f"Error reading PDF: {str(e)}")
+    
     return text
 
 
@@ -448,7 +468,14 @@ def extract_text_from_docx(file_path: str) -> str:
     """Extract text from DOCX file"""
     try:
         doc = docx.Document(file_path)
-        text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+        paragraphs = [paragraph.text for paragraph in doc.paragraphs]
+        text = "\n".join(paragraphs)
+        print(f"   📄 DOCX extracted {len(paragraphs)} paragraphs, {len(text)} total characters")
+        
+        if not text or len(text.strip()) == 0:
+            raise Exception("No text could be extracted from DOCX file")
+            
     except Exception as e:
         raise Exception(f"Error reading DOCX: {str(e)}")
+    
     return text

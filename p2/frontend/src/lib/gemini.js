@@ -5,7 +5,7 @@ const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
 
 // Get the Gemini model for multimodal content
 export const geminiModel = genAI.getGenerativeModel({ 
-  model: 'gemini-1.5-flash',
+  model: 'gemini-2.5-flash',
   generationConfig: {
     temperature: 0.1, // Low temperature for accurate transcription
     topP: 0.8,

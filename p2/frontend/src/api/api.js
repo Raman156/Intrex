@@ -8,14 +8,17 @@ const API_ROOT_URL = API_BASE_URL.replace(/\/api\/?$/, '')
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 60000, // Increased to 60 seconds for long operations
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // Do not force Content-Type globally; FormData needs boundary auto-handled
 })
 
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config) => {
+    // Skip auth token for anonymous endpoints
+    if (config.url && config.url.includes('upload-resume-anonymous')) {
+      return config
+    }
+
     const token = getAuthToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -148,9 +151,11 @@ export const uploadVideo = async (file, onProgress) => {
   
   return retryRequest(async () => {
     const response = await api.post('/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      // Do not set Content-Type manually for multipart/form-data.
+      // Axios/browser will set the correct boundary automatically.
+      // headers: {
+      //   'Content-Type': 'multipart/form-data',
+      // },
       onUploadProgress: (progressEvent) => {
         const percentCompleted = Math.round(
           (progressEvent.loaded * 100) / progressEvent.total
@@ -163,7 +168,13 @@ export const uploadVideo = async (file, onProgress) => {
 }
 
 // Upload resume with validation and progress tracking
-export const uploadResume = async (file, field = null, onProgress) => {
+export const uploadResume = async (file, field = null, onProgress = null) => {
+  // Support legacy usage where callback is passed as second arg
+  if (typeof field === 'function') {
+    onProgress = field
+    field = null
+  }
+
   // Validate file
   const validation = validateFile(file, {
     maxSize: 5 * 1024 * 1024, // 5MB
@@ -187,10 +198,12 @@ export const uploadResume = async (file, field = null, onProgress) => {
   }
   
   return retryRequest(async () => {
-    const response = await api.post('/auth/upload-resume', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await api.post('/auth/upload-resume-anonymous', formData, {
+      // Do not set Content-Type manually for multipart/form-data.
+      // Axios/browser will set the correct boundary automatically.
+      // headers: {
+      //   'Content-Type': 'multipart/form-data',
+      // },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {
           const percentCompleted = Math.round(

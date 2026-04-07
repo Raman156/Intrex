@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,6 +15,23 @@ import TranscriptionStatus from './TranscriptionStatus'
 import AnalysisDisplay from './AnalysisDisplay'
 import SessionSummary from './SessionSummary'
 import ResultsPage from './ResultsPage'
+import LiveFacialAnalysis from './LiveFacialAnalysis'
+
+// Speak text using the Web Speech API
+function speakQuestion(text) {
+  if (!window.speechSynthesis) return
+  window.speechSynthesis.cancel() // stop any ongoing speech
+  const utterance = new SpeechSynthesisUtterance(text)
+  utterance.rate = 0.92
+  utterance.pitch = 1
+  utterance.volume = 1
+  // Prefer a natural English voice if available
+  const voices = window.speechSynthesis.getVoices()
+  const preferred = voices.find(v => v.lang.startsWith('en') && v.localService)
+    || voices.find(v => v.lang.startsWith('en'))
+  if (preferred) utterance.voice = preferred
+  window.speechSynthesis.speak(utterance)
+}
 
 // Speak text using the Web Speech API
 function speakQuestion(text) {
@@ -53,6 +70,12 @@ function AIInterview() {
   const [sessionSummary, setSessionSummary] = useState(null)
   const [performanceInsights, setPerformanceInsights] = useState(null)
   const [finalSessionResult, setFinalSessionResult] = useState(null)
+  const [facialAnalysis, setFacialAnalysis] = useState(null) // live facial + emotion data
+  const facialMetricsRef = useRef({               // accumulate without re-renders
+    eye_contact: [], head_stability: [], engagement: [],
+    attention: [], centering: [], blink_rates: [],
+    emotions: [], emotion_scores: [],
+  })
   const [serviceStatus, setServiceStatus] = useState({
     checking: true,
     apiConnected: false,
@@ -90,6 +113,12 @@ function AIInterview() {
     setSessionSummary(null)
     setPerformanceInsights(null)
     setFinalSessionResult(null)
+    setFacialAnalysis(null)
+    facialMetricsRef.current = {
+      eye_contact: [], head_stability: [], engagement: [],
+      attention: [], centering: [], blink_rates: [],
+      emotions: [], emotion_scores: [],
+    }
   }
 
   const handleGoToDashboard = () => {
@@ -288,6 +317,21 @@ function AIInterview() {
     }
   }
 
+  // Called every frame by LiveFacialAnalysis — accumulate without setState
+  const handleMetricsUpdate = useCallback((m) => {
+    const acc = facialMetricsRef.current
+    if (m.eye_contact    != null) acc.eye_contact.push(m.eye_contact)
+    if (m.head_stability != null) acc.head_stability.push(m.head_stability)
+    if (m.engagement     != null) acc.engagement.push(m.engagement)
+    if (m.attention      != null) acc.attention.push(m.attention)
+    if (m.centering      != null) acc.centering.push(m.centering)
+    if (m.blink_rate     != null) acc.blink_rates.push(m.blink_rate)
+    if (m.emotion) {
+      acc.emotions.push(m.emotion)
+      if (m.all_emotions) acc.emotion_scores.push(m.all_emotions)
+    }
+  }, [])
+
   const handleRecordingComplete = (audioBlob, duration, transcript = null, transcriptionStatus = 'pending') => {
     const questionId = getCurrentQuestionId()
     updateQuestionSession(questionId, { 
@@ -339,6 +383,12 @@ function AIInterview() {
       alert('Please record an answer first')
       return
     }
+
+    // Validate audio blob before submitting
+    if (session?.audioBlob && session.audioBlob.size === 0) {
+      alert('Recording appears to be empty. Please try recording again.')
+      return
+    }
     
     setIsSubmitting(true)
     
@@ -354,11 +404,16 @@ function AIInterview() {
         }
       } else {
         // Submit recorded answer
+        console.log('Submitting answer with audio blob size:', session.audioBlob.size)
+        
+        // If we have a transcript from the recording, use it as fallback
+        const fallbackText = session.transcript && session.transcript !== 'pending' ? session.transcript : null
+        
         response = await submitAnswer(
           sessionId,
           currentQuestionIndex,
           session.audioBlob,
-          null,
+          fallbackText,
           session.timeUsed
         )
       }
@@ -479,6 +534,43 @@ function AIInterview() {
       
       setOverallResults({ ...overallPerformance, sessionSummary: summary })
       setAnswers(detailedAnswers)
+
+      // Build facial analysis summary from accumulated live metrics
+      const acc = facialMetricsRef.current
+      const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
+      const emotionCounts = {}
+      acc.emotions.forEach(e => { emotionCounts[e] = (emotionCounts[e] || 0) + 1 })
+      const total = acc.emotions.length || 1
+      const distribution = Object.fromEntries(
+        Object.entries(emotionCounts).map(([k, v]) => [k, +(v / total * 100).toFixed(1)])
+      )
+      const dominant = Object.keys(emotionCounts).sort((a, b) => emotionCounts[b] - emotionCounts[a])[0] || null
+      const nervousness = +(
+        ((distribution.fear || 0) * 1.0 + (distribution.disgust || 0) * 0.7 + (distribution.sad || 0) * 0.5) / 100 * 100
+      ).toFixed(1)
+      const positivity = +(
+        ((distribution.happy || 0) * 1.0 + (distribution.surprise || 0) * 0.4) / 100 * 100
+      ).toFixed(1)
+
+      setFacialAnalysis({
+        avgMetrics: {
+          eye_contact:    +avg(acc.eye_contact).toFixed(2),
+          head_stability: +avg(acc.head_stability).toFixed(2),
+          engagement:     +avg(acc.engagement).toFixed(2),
+          attention:      +avg(acc.attention).toFixed(2),
+          centering:      +avg(acc.centering).toFixed(2),
+          avg_blink_rate: +avg(acc.blink_rates).toFixed(1),
+        },
+        emotionHistory: acc.emotions.map((e, i) => ({ emotion: e, confidence: 0, ts: i })),
+        emotionSummary: {
+          distribution,
+          dominant,
+          nervousness_score: Math.min(100, nervousness),
+          positivity_score:  Math.min(100, positivity),
+          total_samples: acc.emotions.length,
+        },
+      })
+
       setStep('results')
       
       console.log('Interview analysis and summary completed successfully')
@@ -813,68 +905,86 @@ function AIInterview() {
               </label>
             </div>
 
-            {/* Interview content */}
-            <div className="space-y-6">
-                {/* Question Timer */}
-                <QuestionTimer
-                  questionId={getCurrentQuestionId()}
-                  allocatedTime={getCurrentSession()?.allocatedTime || 120}
-                  onTimeUp={() => handleTimerComplete(getCurrentSession()?.allocatedTime || 120, false)}
-                  onSkip={handleSkipQuestion}
-                  onDone={handleQuestionDone}
-                  strictMode={strictMode}
-                  isRecording={isRecording}
-                />
+            {/* ── Live Webcam Analysis (center) ── */}
+            <LiveFacialAnalysis
+              sessionId={sessionId}
+              active={step === 'interview'}
+              onMetricsUpdate={handleMetricsUpdate}
+            />
 
-                {/* Question Card */}
-                <motion.div
-                  key={currentQuestionIndex}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="glass rounded-2xl p-6 border-2 border-blue-500/30"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center 
-                      flex-shrink-0 professional-glow">
-                      <span className="text-white font-bold">Q{currentQuestionIndex + 1}</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
-                          {questions[currentQuestionIndex].type}
-                        </span>
-                        <span className="text-xs px-3 py-1 bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
-                          {formatTime(getCurrentSession()?.allocatedTime || 120)} allocated
-                        </span>
-                        {isSpeaking && (
-                          <span className="text-xs px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full border border-purple-500/30 flex items-center gap-1">
-                            <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
-                            Speaking...
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-lg font-medium text-white leading-relaxed">
-                        {questions[currentQuestionIndex].question}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => speakQuestion(questions[currentQuestionIndex].question)}
-                        className="mt-3 flex items-center gap-2 text-xs text-gray-400 hover:text-purple-400 transition-colors"
-                      >
-                        <span>🔊</span> Replay question
-                      </button>
-                    </div>
+            {/* Question Timer */}
+            <QuestionTimer
+              questionId={getCurrentQuestionId()}
+              allocatedTime={getCurrentSession()?.allocatedTime || 120}
+              onTimeUp={() => handleTimerComplete(getCurrentSession()?.allocatedTime || 120, false)}
+              onSkip={handleSkipQuestion}
+              onDone={handleQuestionDone}
+              strictMode={strictMode}
+              isRecording={isRecording}
+            />
+
+            {/* Question Card */}
+            <motion.div
+              key={currentQuestionIndex}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="glass rounded-2xl p-6 border-2 border-blue-500/30"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center 
+                  flex-shrink-0 professional-glow">
+                  <span className="text-white font-bold">Q{currentQuestionIndex + 1}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
+                      {questions[currentQuestionIndex].type}
+                    </span>
+                    <span className="text-xs px-3 py-1 bg-green-500/20 text-green-400 rounded-full border border-green-500/30">
+                      {formatTime(getCurrentSession()?.allocatedTime || 120)} allocated
+                    </span>
+                    {isSpeaking && (
+                      <span className="text-xs px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full border border-purple-500/30 flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 bg-purple-400 rounded-full animate-pulse"></span>
+                        Speaking...
+                      </span>
+                    )}
                   </div>
-                </motion.div>
-
-                {/* Recording Section */}
-                <AudioRecorder
-                  questionId={getCurrentQuestionId()}
-                  onRecordingComplete={handleRecordingComplete}
-                  isRecording={isRecording}
-                  onStartRecording={() => { setIsRecording(true); setTtsReady(false) }}
-                  onStopRecording={() => setIsRecording(false)}
-                  autoStart={ttsReady}
+                  <p className="text-lg font-medium text-white leading-relaxed">
+                    {questions[currentQuestionIndex].question}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => speakQuestion(questions[currentQuestionIndex].question)}
+                    className="mt-3 flex items-center gap-2 text-xs text-gray-400 hover:text-purple-400 transition-colors"
+                  >
+                    <span>🔊</span> Replay question
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+            
+            {/* Recording Section */}
+            <AudioRecorder
+              questionId={getCurrentQuestionId()}
+              onRecordingComplete={handleRecordingComplete}
+              isRecording={isRecording}
+              onStartRecording={() => { setIsRecording(true); setTtsReady(false) }}
+              onStopRecording={() => setIsRecording(false)}
+              autoStart={ttsReady}
+            />
+            
+            {/* Submit Section */}
+            {!isRecording && getCurrentSession()?.audioBlob && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="space-y-4"
+              >
+                {/* Transcription Status */}
+                <TranscriptionStatus 
+                  session={getCurrentSession()} 
+                  className="max-w-2xl mx-auto"
                 />
 
                 {/* Submit Section */}
@@ -1023,6 +1133,7 @@ function AIInterview() {
               answers={answers}
               sessionSummary={sessionSummary}
               performanceInsights={performanceInsights}
+              facialAnalysis={facialAnalysis}
               onRetryInterview={handleRetryInterview}
               onGoToDashboard={handleGoToDashboard}
               onDownloadReport={handleDownloadReport}
