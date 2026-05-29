@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { debugLog, debugError, debugWarn } from '../utils/logger'
 import { motion, AnimatePresence } from 'framer-motion'
 
 function MicrophoneValidator({ onValidationComplete, isVisible }) {
@@ -97,7 +98,7 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
       }, 2000)
       
     } catch (error) {
-      console.error('Error setting up audio monitoring:', error)
+      debugError('Error setting up audio monitoring:', error)
       setStatus('error')
     }
   }
@@ -129,7 +130,7 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
       }, 3000)
       
     } catch (error) {
-      console.error('Microphone access error:', error)
+      debugError('Microphone access error:', error)
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         setStatus('denied')
       } else {
@@ -180,21 +181,23 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-surface-elevated border border-surface-border rounded-2xl p-8 max-w-md w-full"
+          className="glass p-8 max-w-md w-full"
+          style={{ color: 'var(--text-primary)' }}
         >
           {status === 'checking' && (
             <div className="text-center">
               <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🎤</span>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Checking Microphone</h3>
-              <p className="text-gray-400 mb-6">Please speak into your microphone...</p>
+              <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Checking Microphone</h3>
+              <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>Please speak into your microphone...</p>
               
               {/* Audio Level Indicator */}
               <div className="mb-6">
@@ -205,7 +208,7 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
                     transition={{ duration: 0.1 }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
                   {audioLevel > 0.01 ? 'Audio detected!' : 'Listening...'}
                 </p>
               </div>
@@ -221,17 +224,18 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
 
           {status === 'denied' && (
             <div className="text-center">
-              <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 recorder-icon recorder-icon--idle rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">🚫</span>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Microphone Access Required</h3>
-              <p className="text-gray-400 mb-6">
+              <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Microphone Access Required</h3>
+              <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
                 We need microphone access to conduct the interview. Please enable it to continue.
               </p>
               
               <button
                 onClick={() => setShowHelp(!showHelp)}
-                className="text-blue-400 hover:text-blue-300 text-sm mb-4 underline"
+                className="text-sm mb-4 underline"
+                style={{ color: 'var(--brand-accent)' }}
               >
                 How to enable microphone access?
               </button>
@@ -257,8 +261,8 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
               <button
                 onClick={retryAudioCheck}
                 disabled={isRetrying}
-                className="w-full bg-gradient-accent text-white py-3 px-6 rounded-xl hover:shadow-xl 
-                  transition-all duration-200 font-semibold disabled:bg-gray-600"
+                className="w-full py-3 px-6 rounded-xl transition-all duration-200 font-semibold recorder-action"
+                aria-label="Retry microphone access"
               >
                 {isRetrying ? 'Checking...' : 'Try Again'}
               </button>
@@ -266,11 +270,11 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
           )}
           {status === 'no-audio' && (
             <div className="text-center">
-              <div className="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 recorder-icon recorder-icon--idle rounded-full flex items-center justify-center mx-auto mb-6">
                 <span className="text-4xl">⚠️</span>
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">No Audio Detected</h3>
-              <p className="text-gray-400 mb-6">
+              <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Audio Detected</h3>
+              <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
                 Your microphone is connected but we're not detecting audio. Please check your device.
               </p>
               
@@ -287,8 +291,8 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
               <button
                 onClick={retryAudioCheck}
                 disabled={isRetrying}
-                className="w-full bg-gradient-accent text-white py-3 px-6 rounded-xl hover:shadow-xl 
-                  transition-all duration-200 font-semibold disabled:bg-gray-600"
+                className="w-full py-3 px-6 rounded-xl transition-all duration-200 font-semibold recorder-action"
+                aria-label="Retry audio check"
               >
                 {isRetrying ? 'Checking...' : 'Retry Audio Check'}
               </button>
@@ -301,11 +305,17 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
               animate={{ scale: 1 }}
               className="text-center"
             >
-              <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">✅</span>
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Mic Ready!</h3>
-              <p className="text-green-400 mb-6">Your microphone is working perfectly</p>
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                className="text-center"
+              >
+                <div className="w-20 h-20 recorder-icon recorder-icon--ready rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-4xl">✅</span>
+                </div>
+                <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Mic Ready!</h3>
+                <p className="mb-6" style={{ color: 'var(--success)' }}>Your microphone is working perfectly</p>
+              </motion.div>
               
               <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -327,8 +337,8 @@ function MicrophoneValidator({ onValidationComplete, isVisible }) {
               <button
                 onClick={retryAudioCheck}
                 disabled={isRetrying}
-                className="w-full bg-gradient-accent text-white py-3 px-6 rounded-xl hover:shadow-xl 
-                  transition-all duration-200 font-semibold disabled:bg-gray-600"
+                className="w-full py-3 px-6 rounded-xl transition-all duration-200 font-semibold recorder-action"
+                aria-label="Retry audio setup"
               >
                 {isRetrying ? 'Retrying...' : 'Try Again'}
               </button>

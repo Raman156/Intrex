@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { startAIInterview, startAIInterviewRole, submitAnswer, completeInterview, checkApiHealth, getAIInterviewStatus } from '../api/api'
+import { debugLog, debugError } from '../utils/logger'
 import { batchAnalyzeAnswers, calculateOverallPerformance } from '../services/analysisService'
 import { generateSessionSummary, createInterviewSessionResult, generatePerformanceInsights } from '../services/summaryService'
 import { saveSessionResult } from '../services/sessionStorage'
@@ -25,89 +26,71 @@ function speakQuestion(text) {
   utterance.rate = 0.92
   utterance.pitch = 1
   utterance.volume = 1
-  // Prefer a natural English voice if available
-  const voices = window.speechSynthesis.getVoices()
-  const preferred = voices.find(v => v.lang.startsWith('en') && v.localService)
-    || voices.find(v => v.lang.startsWith('en'))
-  if (preferred) utterance.voice = preferred
-  window.speechSynthesis.speak(utterance)
-}
-
-// Speak text using the Web Speech API
-function speakQuestion(text) {
-  if (!window.speechSynthesis) return
-  window.speechSynthesis.cancel() // stop any ongoing speech
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.rate = 0.92
-  utterance.pitch = 1
-  utterance.volume = 1
-  // Prefer a natural English voice if available
-  const voices = window.speechSynthesis.getVoices()
-  const preferred = voices.find(v => v.lang.startsWith('en') && v.localService)
-    || voices.find(v => v.lang.startsWith('en'))
-  if (preferred) utterance.voice = preferred
   window.speechSynthesis.speak(utterance)
 }
 
 function AIInterview() {
-  const { user } = useAuth()
   const navigate = useNavigate()
-  const [step, setStep] = useState('upload') // upload, mic-check, interview, analyzing, results
-  const [isSpeaking, setIsSpeaking] = useState(false)
-  const [ttsReady, setTtsReady] = useState(false) // true only after TTS finishes for current question
+
+  const [step, setStep] = useState('upload')
   const [sessionId, setSessionId] = useState(null)
   const [questions, setQuestions] = useState([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
+  const [recordingDuration, setRecordingDuration] = useState(0)
   const [answers, setAnswers] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [overallResults, setOverallResults] = useState(null)
-  const [showMicValidator, setShowMicValidator] = useState(false)
-  const [questionSessions, setQuestionSessions] = useState(new Map()) // QuestionSession data
-  const [strictMode, setStrictMode] = useState(false) // Timer pause/resume control
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 })
-  const [sessionSummary, setSessionSummary] = useState(null)
-  const [performanceInsights, setPerformanceInsights] = useState(null)
-  const [finalSessionResult, setFinalSessionResult] = useState(null)
-  const [facialAnalysis, setFacialAnalysis] = useState(null) // live facial + emotion data
-  const facialMetricsRef = useRef({               // accumulate without re-renders
-    eye_contact: [], head_stability: [], engagement: [],
-    attention: [], centering: [], blink_rates: [],
-    emotions: [], emotion_scores: [],
-  })
-  const [serviceStatus, setServiceStatus] = useState({
-    checking: true,
-    apiConnected: false,
-    geminiActive: false,
-    error: ''
-  })
-  
-  // Form state
   const [resume, setResume] = useState(null)
   const [jobDescription, setJobDescription] = useState('')
   const [numQuestions, setNumQuestions] = useState(5)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [interviewMode, setInterviewMode] = useState('role') // options: role, resume
+  const [showMicValidator, setShowMicValidator] = useState(false)
+  const [interviewMode, setInterviewMode] = useState('role')
   const [targetedRole, setTargetedRole] = useState('Software Developer')
   const [yearsOfExperience, setYearsOfExperience] = useState(3)
+  const [serviceStatus, setServiceStatus] = useState({
+    checking: false,
+    apiConnected: false,
+    geminiActive: false,
+    error: ''
+  })
 
-  // Action handlers for ResultsPage
-  const handleRetryInterview = () => {
-    cleanup() // Clean up audio resources
-    setStep('upload')
-    setSessionId(null)
-    setQuestions([])
-    setCurrentQuestionIndex(0)
-    setAnswers([])
-    setOverallResults(null)
-    setResume(null)
-    setJobDescription('')
-    setIsRecording(false)
-    setQuestionSessions(new Map())
-    setStrictMode(false)
-    setIsAnalyzing(false)
-    setAnalysisProgress({ current: 0, total: 0 })
+  // Badge styles using design tokens for accessible contrast
+  const apiBadgeStyle = serviceStatus.checking
+    ? { backgroundColor: 'rgba(148,163,184,0.08)', color: 'var(--text-secondary)' }
+    : serviceStatus.apiConnected
+      ? { backgroundColor: 'rgba(16,240,160,0.12)', color: 'var(--text-primary)' }
+      : { backgroundColor: 'rgba(239,68,68,0.08)', color: 'var(--text-primary)' }
+
+  const geminiBadgeStyle = serviceStatus.checking
+    ? { backgroundColor: 'rgba(148,163,184,0.08)', color: 'var(--text-secondary)' }
+    : serviceStatus.geminiActive
+      ? { backgroundColor: 'rgba(59,130,246,0.08)', color: 'var(--text-primary)' }
+      : { backgroundColor: 'rgba(245,158,11,0.08)', color: 'var(--text-primary)' }
+  const [questionSessions, setQuestionSessions] = useState(new Map())
+  const [ttsReady, setTtsReady] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [sessionSummary, setSessionSummary] = useState(null)
+  const [performanceInsights, setPerformanceInsights] = useState(null)
+  const [finalSessionResult, setFinalSessionResult] = useState(null)
+  const [facialAnalysis, setFacialAnalysis] = useState(null)
+  const [strictMode, setStrictMode] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 })
+
+  const facialMetricsRef = useRef({
+    eye_contact: [],
+    head_stability: [],
+    engagement: [],
+    attention: [],
+    centering: [],
+    blink_rates: [],
+    emotions: [],
+    emotion_scores: [],
+  })
+
+  const resetInterviewState = () => {
     setTargetedRole('Software Developer')
     setYearsOfExperience(3)
     setSessionSummary(null)
@@ -292,7 +275,7 @@ function AIInterview() {
           throw new Error('No questions returned from the server. Please try a different role/experience.')
         }
 
-        console.log('AI interview started:', {
+        debugLog('AI interview started:', {
           sessionId: response.session_id,
           role: targetedRole,
           questionsReceived: response.questions.length
@@ -302,8 +285,8 @@ function AIInterview() {
         setQuestions(response.questions)
         setShowMicValidator(true) // Show mic validator before interview
       }
-    } catch (error) {
-      console.error('Error starting interview:', error)
+      } catch (error) {
+      debugError('Error starting interview:', error)
       alert(error.message || 'Failed to start interview')
     } finally {
       setIsGenerating(false)
@@ -404,7 +387,7 @@ function AIInterview() {
         }
       } else {
         // Submit recorded answer
-        console.log('Submitting answer with audio blob size:', session.audioBlob.size)
+        debugLog('Submitting answer with audio blob size:', session.audioBlob.size)
         
         // If we have a transcript from the recording, use it as fallback
         const fallbackText = session.transcript && session.transcript !== 'pending' ? session.transcript : null
@@ -443,7 +426,7 @@ function AIInterview() {
         moveToNextQuestion()
       }
     } catch (error) {
-      console.error('Error submitting answer:', error)
+      debugError('Error submitting answer:', error)
       alert(error.response?.data?.detail || 'Failed to submit answer')
     } finally {
       setIsSubmitting(false)
@@ -472,7 +455,7 @@ function AIInterview() {
       setAnalysisProgress({ current: 0, total: analysisItems.length + 1 }) // +1 for summary generation
       
       // Batch analyze all answers
-      console.log(`Starting analysis for ${analysisItems.length} questions`)
+      debugLog(`Starting analysis for ${analysisItems.length} questions`)
       const analysisResults = await batchAnalyzeAnswers(analysisItems)
       
       // Update question sessions with analysis results
@@ -486,7 +469,7 @@ function AIInterview() {
       setAnalysisProgress(prev => ({ ...prev, current: prev.current + 1 }))
       
       // Generate session summary using Gemini
-      console.log('Generating session summary...')
+      debugLog('Generating session summary...')
       const summary = await generateSessionSummary(analysisResults, targetedRole)
       setSessionSummary(summary)
       
@@ -511,9 +494,9 @@ function AIInterview() {
       // Save session result to user's record
       const saveSuccess = saveSessionResult(sessionResult)
       if (saveSuccess) {
-        console.log('Session result saved to user record')
+        debugLog('Session result saved to user record')
       } else {
-        console.warn('Failed to save session result')
+        debugError('Failed to save session result')
       }
       
       // Prepare detailed answers for results display
@@ -573,10 +556,10 @@ function AIInterview() {
 
       setStep('results')
       
-      console.log('Interview analysis and summary completed successfully')
+      debugLog('Interview analysis and summary completed successfully')
       
     } catch (error) {
-      console.error('Error completing interview:', error)
+      debugError('Error completing interview:', error)
       alert('Failed to complete interview analysis')
     } finally {
       setIsAnalyzing(false)
@@ -642,13 +625,7 @@ function AIInterview() {
             </div>
 
             <div className="mb-6 flex flex-wrap items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                serviceStatus.checking
-                  ? 'bg-gray-500/10 text-gray-300 border-gray-500/30'
-                  : serviceStatus.apiConnected
-                    ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                    : 'bg-red-500/10 text-red-400 border-red-500/30'
-              }`}>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold border" style={apiBadgeStyle}>
                 {serviceStatus.checking
                   ? 'Checking API...'
                   : serviceStatus.apiConnected
@@ -656,13 +633,7 @@ function AIInterview() {
                     : 'API Disconnected'}
               </span>
 
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                serviceStatus.checking
-                  ? 'bg-gray-500/10 text-gray-300 border-gray-500/30'
-                  : serviceStatus.geminiActive
-                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-              }`}>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold border" style={geminiBadgeStyle}>
                 {serviceStatus.checking
                   ? 'Checking Gemini...'
                   : serviceStatus.geminiActive
@@ -874,7 +845,6 @@ function AIInterview() {
             transition={{ duration: 0.3 }}
             className="space-y-6"
           >
-            {/* Progress Bar */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-400">Interview Progress</span>
@@ -892,7 +862,6 @@ function AIInterview() {
               </div>
             </div>
 
-            {/* Settings Toggle */}
             <div className="flex justify-end">
               <label className="flex items-center gap-2 text-sm text-gray-400">
                 <input
@@ -905,14 +874,12 @@ function AIInterview() {
               </label>
             </div>
 
-            {/* ── Live Webcam Analysis (center) ── */}
             <LiveFacialAnalysis
               sessionId={sessionId}
               active={step === 'interview'}
               onMetricsUpdate={handleMetricsUpdate}
             />
 
-            {/* Question Timer */}
             <QuestionTimer
               questionId={getCurrentQuestionId()}
               allocatedTime={getCurrentSession()?.allocatedTime || 120}
@@ -923,7 +890,6 @@ function AIInterview() {
               isRecording={isRecording}
             />
 
-            {/* Question Card */}
             <motion.div
               key={currentQuestionIndex}
               initial={{ opacity: 0, x: 20 }}
@@ -931,8 +897,7 @@ function AIInterview() {
               className="glass rounded-2xl p-6 border-2 border-blue-500/30"
             >
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center 
-                  flex-shrink-0 professional-glow">
+                <div className="w-10 h-10 bg-gradient-accent rounded-lg flex items-center justify-center flex-shrink-0 professional-glow">
                   <span className="text-white font-bold">Q{currentQuestionIndex + 1}</span>
                 </div>
                 <div className="flex-1">
@@ -963,8 +928,7 @@ function AIInterview() {
                 </div>
               </div>
             </motion.div>
-            
-            {/* Recording Section */}
+
             <AudioRecorder
               questionId={getCurrentQuestionId()}
               onRecordingComplete={handleRecordingComplete}
@@ -973,80 +937,63 @@ function AIInterview() {
               onStopRecording={() => setIsRecording(false)}
               autoStart={ttsReady}
             />
-            
-            {/* Submit Section */}
+
             {!isRecording && getCurrentSession()?.audioBlob && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="space-y-4"
               >
-                {/* Transcription Status */}
-                <TranscriptionStatus 
-                  session={getCurrentSession()} 
+                <TranscriptionStatus
+                  session={getCurrentSession()}
                   className="max-w-2xl mx-auto"
                 />
-
-                {/* Submit Section */}
-                {!isRecording && getCurrentSession()?.audioBlob && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-4"
-                  >
-                    <TranscriptionStatus 
-                      session={getCurrentSession()} 
-                      className="max-w-2xl mx-auto"
-                    />
-                    <div className="glass rounded-2xl p-8 text-center border border-surface-border">
-                      <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-4xl">✓</span>
-                      </div>
-                      <p className="text-green-400 mb-2 text-lg font-semibold">Answer Recorded!</p>
-                      <p className="text-gray-400 mb-6">
-                        Time used: {formatTime(getCurrentSession()?.timeUsed || 0)}
-                      </p>
-                      <div className="flex gap-4 justify-center">
-                        <motion.button
-                          onClick={handleSubmitAnswer}
-                          disabled={isSubmitting}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="bg-gradient-accent text-white py-4 px-10 rounded-xl hover:shadow-xl 
-                            transition-all duration-200 font-semibold text-lg disabled:bg-gray-600 
-                            professional-glow flex items-center gap-2"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Analyzing...
-                            </>
-                          ) : (
-                            <>Submit Answer <span>→</span></>
-                          )}
-                        </motion.button>
-                        <motion.button
-                          onClick={() => {
-                            const questionId = getCurrentQuestionId()
-                            const session = getCurrentSession()
-                            if (session?.audioBlob) URL.revokeObjectURL(session.audioBlob)
-                            updateQuestionSession(questionId, { 
-                              audioBlob: null, timeUsed: 0,
-                              transcript: null, transcriptionStatus: 'pending'
-                            })
-                          }}
-                          disabled={isSubmitting}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="glass glass-hover text-gray-300 py-4 px-10 rounded-xl 
-                            transition-all duration-200 font-semibold text-lg disabled:opacity-50"
-                        >
-                          Re-record
-                        </motion.button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
+                <div className="glass rounded-2xl p-8 text-center border border-surface-border">
+                  <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">✓</span>
+                  </div>
+                  <p className="text-green-400 mb-2 text-lg font-semibold">Answer Recorded!</p>
+                  <p className="text-gray-400 mb-6">
+                    Time used: {formatTime(getCurrentSession()?.timeUsed || 0)}
+                  </p>
+                  <div className="flex gap-4 justify-center">
+                    <motion.button
+                      onClick={handleSubmitAnswer}
+                      disabled={isSubmitting}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="bg-gradient-accent text-white py-4 px-10 rounded-xl hover:shadow-xl transition-all duration-200 font-semibold text-lg disabled:bg-gray-600 professional-glow flex items-center gap-2"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>Submit Answer <span>→</span></>
+                      )}
+                    </motion.button>
+                    <motion.button
+                      onClick={() => {
+                        const questionId = getCurrentQuestionId()
+                        const session = getCurrentSession()
+                        if (session?.audioBlob) URL.revokeObjectURL(session.audioBlob)
+                        updateQuestionSession(questionId, {
+                          audioBlob: null,
+                          timeUsed: 0,
+                          transcript: null,
+                          transcriptionStatus: 'pending'
+                        })
+                      }}
+                      disabled={isSubmitting}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="glass glass-hover text-gray-300 py-4 px-10 rounded-xl transition-all duration-200 font-semibold text-lg disabled:opacity-50"
+                    >
+                      Re-record
+                    </motion.button>
+                  </div>
+                </div>
 
                 {answers.length > 0 && (
                   <motion.div
@@ -1065,7 +1012,8 @@ function AIInterview() {
                     </div>
                   </motion.div>
                 )}
-            </div>
+              </motion.div>
+            )}
           </motion.div>
         )}
         

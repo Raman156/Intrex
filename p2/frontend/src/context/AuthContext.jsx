@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { debugLog, debugError, debugWarn } from '../utils/logger'
 import { auth } from '../config/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/authStorage'
@@ -23,13 +24,13 @@ export const AuthProvider = ({ children }) => {
           const userData = JSON.parse(storedUser)
           setUser(userData)
         } catch (err) {
-          console.error('Error parsing stored user:', err)
+          debugError('Error parsing stored user:', err)
         }
       }
     }
     
     if (!auth) {
-      console.warn('Firebase auth not initialized - Firebase env vars are missing. Login is disabled.')
+      debugWarn('Firebase auth not initialized - Firebase env vars are missing. Login is disabled.')
       setLoading(false)
       return
     }
@@ -85,7 +86,7 @@ export const AuthProvider = ({ children }) => {
                 localStorage.setItem('newUserRedirect', 'true')
               }
             } catch (loginError) {
-              console.error('Backend login failed:', loginError)
+              debugError('Backend login failed:', loginError)
               // Fallback: store Firebase token (might not work with protected endpoints)
               setAuthToken(idToken)
               
@@ -121,14 +122,14 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('newUserRedirect')
           }
         } catch (err) {
-          console.error('Error in auth state change:', err)
+          debugError('Error in auth state change:', err)
           setError(err.message)
         } finally {
           setLoading(false)
         }
       },
       (error) => {
-        console.error('Auth state change error:', error)
+        debugError('Auth state change error:', error)
         setError(error.message)
         setLoading(false)
       }

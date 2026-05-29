@@ -3,7 +3,49 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+ 
+/* Design tokens (CSS variables) - used across the app for theming */
+:root {
+  --bg: #09090E;
+  --bg-secondary: #0C0D15;
+  --surface: #0F1018;
+  --surface-glass: rgba(17, 24, 39, 0.8);
+  --surface-border: #1E293B;
+  --text-primary: #FFFFFF;
+  --text-secondary: #9CA3C8;
+  --brand-primary: #6D5BFF;
+  --brand-accent: #0ea5e9;
+  --brand-secondary: #8b5cf6;
+  --success: #10F0A0;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --glass-radius: 1rem;
+  --card-radius: 0.75rem;
+  --focus-color: #a78bfa;
+  --shadow-subtle: 0 4px 24px rgba(11, 18, 32, 0.4);
+  --shadow-glow: 0 2px 16px rgba(98, 125, 152, 0.2);
+}
 
+/* Light theme overrides */
+body.light {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-glass: rgba(255,255,255,0.85);
+  --surface-border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --shadow-subtle: 0 4px 24px rgba(0,0,0,0.06);
+}
+
+/* Dark theme overrides */
+body.dark {
+  --bg: #0B1220;
+  --surface: #0F1018;
+  --surface-glass: rgba(17, 24, 39, 0.8);
+  --surface-border: #1E293B;
+  --text-primary: #FFFFFF;
+  --text-secondary: #9CA3C8;
+}
 @layer base {
   /* Root font settings */
   html {
@@ -14,8 +56,8 @@
   }
 
   body {
-    background-color: #09090E;
-    color: #FFFFFF;
+    background-color: var(--bg);
+    color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-weight: 400;
     line-height: 1.6;
@@ -238,9 +280,10 @@
 
   /* Glass Morphism */
   .glass {
-    background-color: rgba(17, 24, 39, 0.8);
+    background-color: var(--surface-glass);
     backdrop-filter: blur(12px);
-    border: 1px solid #1E293B;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--glass-radius);
   }
   
   .glass-hover {
@@ -266,8 +309,9 @@
   
   /* Cards */
   .card {
-    background-color: #1F2937;
-    border: 1px solid #1E293B;
+    background-color: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--card-radius);
   }
 
   /* Light theme cards */
@@ -293,7 +337,7 @@
   
   /* Shadows */
   .subtle-shadow {
-    box-shadow: 0 4px 24px rgba(11, 18, 32, 0.4);
+    box-shadow: var(--shadow-subtle);
   }
 
   /* Light theme shadows */
@@ -302,7 +346,7 @@
   }
   
   .professional-glow {
-    box-shadow: 0 2px 16px rgba(98, 125, 152, 0.2);
+    box-shadow: var(--shadow-glow);
   }
 
   /* Light theme glow */
@@ -793,6 +837,83 @@ textarea:focus-visible {
 
 .animate-bounce-subtle {
   animation: bounce-subtle 3s ease-in-out infinite;
+}
+
+/* Premium UI utilities */
+.btn-primary {
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 8px 30px rgba(109,91,255,0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 18px 50px rgba(109,91,255,0.14);
+}
+.btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0.7rem 1.15rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.btn-outline:hover {
+  background: rgba(255,255,255,0.03);
+  transform: translateY(-2px);
+}
+
+.card-premium {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px rgba(2,6,23,0.6);
+}
+
+.bg-gradient-ai {
+  background: linear-gradient(90deg, var(--brand-accent), var(--brand-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* subtle pulse for orbs */
+@keyframes premium-pulse {
+  0% { transform: scale(0.98); opacity: 0.9; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(0.98); opacity: 0.9; }
+}
+.premium-orb {
+  animation: premium-pulse 6s ease-in-out infinite;
+}
+
+/* Recorder-specific tokenized styles */
+.recorder-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+}
+.recorder-icon--idle {
+  background-color: rgba(239, 68, 68, 0.08); /* subtle red */
+}
+.recorder-icon--recording {
+  background-color: rgba(109, 91, 255, 0.08); /* subtle purple */
+}
+.recorder-icon--ready {
+  background-color: rgba(16, 240, 160, 0.08); /* subtle green */
+}
+
+.recorder .record-timer {
+  color: var(--text-primary);
+}
+
+.recorder .recorder-action {
+  background: linear-gradient(135deg, var(--brand-accent) 0%, var(--brand-secondary) 100%);
+  color: white;
 }
 
 /* Scale Pulse */

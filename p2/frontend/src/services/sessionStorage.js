@@ -2,6 +2,8 @@
  * Session storage service for managing interview session data
  */
 
+import { debugLog, debugError } from '../utils/logger'
+
 const SESSIONS_STORAGE_KEY = 'interview_sessions'
 const USER_PROFILE_KEY = 'user_profile'
 
@@ -22,10 +24,10 @@ export function saveSessionResult(sessionResult) {
     
     localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(limitedSessions))
     
-    console.log('Session saved successfully:', sessionResult.sessionId)
+    debugLog('Session saved successfully:', sessionResult.sessionId)
     return true
   } catch (error) {
-    console.error('Error saving session:', error)
+    debugError('Error saving session:', error)
     return false
   }
 }
@@ -39,7 +41,7 @@ export function getSessionHistory() {
     const sessionsData = localStorage.getItem(SESSIONS_STORAGE_KEY)
     return sessionsData ? JSON.parse(sessionsData) : []
   } catch (error) {
-    console.error('Error loading session history:', error)
+    debugError('Error loading session history:', error)
     return []
   }
 }
@@ -76,7 +78,7 @@ export function deleteSession(sessionId) {
     localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(filteredSessions))
     return true
   } catch (error) {
-    console.error('Error deleting session:', error)
+    debugError('Error deleting session:', error)
     return false
   }
 }
@@ -260,7 +262,7 @@ export function clearAllSessions() {
     localStorage.removeItem(SESSIONS_STORAGE_KEY)
     return true
   } catch (error) {
-    console.error('Error clearing sessions:', error)
+    debugError('Error clearing sessions:', error)
     return false
   }
 }
@@ -292,7 +294,7 @@ export function importSessionData(jsonData) {
     }
     return false
   } catch (error) {
-    console.error('Error importing session data:', error)
+    debugError('Error importing session data:', error)
     return false
   }
 }

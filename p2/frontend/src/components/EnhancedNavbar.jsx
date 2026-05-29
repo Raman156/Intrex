@@ -91,23 +91,21 @@ const EnhancedNavbar = () => {
             <div className="hidden md:flex items-center gap-3">
               {isLoggedIn ? (
                 <Link to="/profile">
-                  <button className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all duration-300 flex items-center gap-2 group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-brand-primary/20 to-brand-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <User className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Profile</span>
+                  <button className="btn-outline flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span>Profile</span>
                   </button>
                 </Link>
               ) : (
                 <Link to="/firebase-login">
-                  <button className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-all duration-300 flex items-center gap-2 group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-brand-primary/20 to-brand-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <LogIn className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Login</span>
+                  <button className="btn-outline flex items-center gap-2">
+                    <LogIn className="w-4 h-4" />
+                    <span>Login</span>
                   </button>
                 </Link>
               )}
               <Link to="/live-interview">
-                <button className="px-6 py-2 bg-gradient-to-r from-brand-primary to-brand-secondary text-white rounded-lg font-semibold text-sm hover:shadow-glow-purple transition-all duration-300 transform hover:scale-105 active:scale-95">
+                <button className="btn-primary">
                   Start Now
                 </button>
               </Link>

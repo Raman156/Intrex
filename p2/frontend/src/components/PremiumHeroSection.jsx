@@ -49,8 +49,8 @@ const PremiumHeroSection = () => {
       }} />
 
       {/* Animated gradient orbs */}
-      <div className="absolute top-20 right-10 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-20 left-10 w-96 h-96 bg-brand-secondary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-20 right-10 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl premium-orb" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-brand-secondary/10 rounded-full blur-3xl premium-orb" style={{ animationDelay: '1s' }} />
       
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -84,17 +84,16 @@ const PremiumHeroSection = () => {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
               <Link to="/live-interview">
-                <button className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-brand-primary to-brand-secondary hover:shadow-glow-purple text-white rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105 active:scale-95 relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <Play className="w-5 h-5 relative z-10" />
-                  <span className="relative z-10">Start Free Session</span>
+                <button className="btn-primary flex items-center gap-2">
+                  <Play className="w-5 h-5" />
+                  <span>Start Free Session</span>
                 </button>
               </Link>
 
               <Link to="/upload">
-                <button className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-lg font-semibold text-lg border border-white/20 transition-all duration-300 flex items-center justify-center gap-2 backdrop-blur-sm hover:border-brand-primary/50">
+                <button className="btn-outline flex items-center gap-2">
                   <Upload className="w-5 h-5" />
-                  Upload Recording
+                  <span>Upload Recording</span>
                 </button>
               </Link>
             </div>

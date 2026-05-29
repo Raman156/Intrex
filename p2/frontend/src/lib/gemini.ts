@@ -1,5 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
+import { debugLog, debugError, debugWarn } from '../utils/logger'
+import { geminiModel, safetySettings } from './gemini-client'
+
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY)
 
@@ -49,21 +52,21 @@ export async function withRetry<T>(
       return await operation()
     } catch (error) {
       lastError = error as Error
-      console.error(`Attempt ${attempt}/${maxRetries} failed:`, error)
+      debugError(`Attempt ${attempt}/${maxRetries} failed:`, error)
       
       // Classify the error
       const geminiError = classifyGeminiError(lastError)
       
       // Don't retry on non-retryable errors
       if (!geminiError.retryable) {
-        console.error('Non-retryable error encountered:', geminiError.message)
+        debugError('Non-retryable error encountered:', geminiError.message)
         throw geminiError
       }
       
       // If this isn't the last attempt, wait before retrying
       if (attempt < maxRetries) {
         const delay = Math.min(Math.pow(2, attempt - 1) * baseDelay, 10000) // Cap at 10 seconds
-        console.log(`Waiting ${delay}ms before retry...`)
+        debugLog(`Waiting ${delay}ms before retry...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }
@@ -153,7 +156,7 @@ export function classifyGeminiError(error: Error): GeminiError {
 export function validateGeminiSetup(): boolean {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY
   if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    console.error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in your environment.')
+    debugError('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in your environment.')
     return false
   }
   return true

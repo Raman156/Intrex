@@ -1,4 +1,5 @@
 import { geminiModel, safetySettings, withRetry, GeminiError, classifyGeminiError, createLoadingState, LoadingState } from '../../../lib/gemini'
+import { debugLog, debugError, debugWarn } from '../../../utils/logger'
 
 interface SessionSummary {
   overallFeedback: string
@@ -181,7 +182,7 @@ Analyze the patterns across all responses and provide actionable coaching feedba
     return validatedSummary
     
   } catch (error) {
-    console.error('Summary generation failed:', error)
+    debugError('Summary generation failed:', error)
     
     onProgress?.({
       ...loadingState,

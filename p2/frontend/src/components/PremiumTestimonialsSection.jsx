@@ -10,7 +10,7 @@ const TestimonialCard = ({ name, role, company, content, rating, avatar, index, 
   }, [index]);
 
   return (
-    <div
+      <div
       className={`relative transition-all duration-500 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       } ${isFeatured ? 'lg:scale-105 lg:z-10' : ''}`}
@@ -19,7 +19,7 @@ const TestimonialCard = ({ name, role, company, content, rating, avatar, index, 
       <div className="absolute -top-4 -left-4 text-8xl text-brand-primary/5 font-serif pointer-events-none">"</div>
 
       {/* Card */}
-      <div className="relative bg-white/5 backdrop-blur-xl rounded-xl p-8 border border-white/10 hover:border-white/20 transition-all duration-300 h-full hover:shadow-2xl">
+      <div className="relative bg-white/5 backdrop-blur-xl rounded-xl p-8 border border-white/10 hover:border-white/20 transition-all duration-300 h-full hover:shadow-2xl card-premium">
         {/* Stars */}
         <div className="flex gap-1 mb-4">
           {[...Array(rating)].map((_, i) => (

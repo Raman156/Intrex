@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { debugLog, debugError } from '../utils/logger'
 import EnhancedResumeUpload from '../components/EnhancedResumeUpload'
 import UploadForm from '../components/UploadForm'
 
@@ -7,7 +8,7 @@ function TestUpload() {
   const [uploadResults, setUploadResults] = useState(null)
 
   const handleResumeSuccess = (result) => {
-    console.log('Resume upload successful:', result)
+    debugLog('Resume upload successful:', result)
     setUploadResults({
       type: 'resume',
       success: true,
@@ -16,7 +17,7 @@ function TestUpload() {
   }
 
   const handleResumeError = (error) => {
-    console.error('Resume upload failed:', error)
+    debugError('Resume upload failed:', error)
     setUploadResults({
       type: 'resume',
       success: false,

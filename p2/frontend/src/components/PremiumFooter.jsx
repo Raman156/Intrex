@@ -48,8 +48,8 @@ const PremiumFooter = () => {
               </p>
             </div>
             <Link to="/live-interview">
-              <button className="px-8 py-3 bg-gradient-to-r from-brand-primary to-brand-secondary text-white rounded-lg font-semibold hover:shadow-glow-purple transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center gap-2 whitespace-nowrap">
-                Start Now
+              <button className="btn-primary flex items-center gap-2 whitespace-nowrap">
+                <span>Start Now</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </Link>

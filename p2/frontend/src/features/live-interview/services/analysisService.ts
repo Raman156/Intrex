@@ -1,4 +1,5 @@
 import { geminiModel, safetySettings, withRetry, GeminiError, classifyGeminiError, createLoadingState, LoadingState } from '../../../lib/gemini'
+import { debugLog, debugError, debugWarn } from '../../../utils/logger'
 
 interface QuestionAnalysis {
   questionId: string
@@ -160,7 +161,7 @@ Return exactly this JSON structure:
     return validatedAnalysis
     
   } catch (error) {
-    console.error(`Analysis failed for question ${questionId}:`, error)
+    debugError(`Analysis failed for question ${questionId}:`, error)
     
     onProgress?.({
       ...loadingState,
@@ -200,7 +201,7 @@ export async function batchAnalyzeAnswers(
   
   for (const request of requests) {
     try {
-      console.log(`Starting analysis for question: ${request.questionId}`)
+        debugLog(`Starting analysis for question: ${request.questionId}`)
       
       const analysis = await analyzeAnswer(
         request,
@@ -210,10 +211,10 @@ export async function batchAnalyzeAnswers(
       results.push(analysis)
       onComplete?.(request.questionId, analysis)
       
-      console.log(`Analysis completed for question: ${request.questionId}`)
+      debugLog(`Analysis completed for question: ${request.questionId}`)
       
     } catch (error) {
-      console.error(`Analysis failed for question ${request.questionId}:`, error)
+      debugError(`Analysis failed for question ${request.questionId}:`, error)
       
       const geminiError = error instanceof GeminiError ? error : classifyGeminiError(error as Error)
       

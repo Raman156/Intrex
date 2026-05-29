@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Home } from 'lucide
 import { Link, useNavigate } from 'react-router-dom';
 import { login, googleLogin } from '../api/api';
 import { setAuthToken } from '../utils/authStorage';
+import { debugLog, debugError } from '../utils/logger'
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -43,20 +44,20 @@ const Login = () => {
       if (!token) {
         throw new Error('Google Sign-In token not received. Please try again.');
       }
-      console.log('Google token received:', token ? 'Yes' : 'No');
+      debugLog('Google token received:', token ? 'Yes' : 'No');
       
       const response = await googleLogin(token);
-      console.log('Backend response:', response);
+      debugLog('Backend response:', response);
       
       setAuthToken(response.access_token);
       localStorage.setItem('user', JSON.stringify(response.user));
       
-      console.log('Navigating to dashboard...');
+      debugLog('Navigating to dashboard...');
       
       // Force page reload to update AuthContext
       window.location.href = '/dashboard';
     } catch (err) {
-      console.error('Google login error:', err);
+      debugError('Google login error:', err);
       const detail = err?.response?.data?.detail;
       const message = typeof detail === 'string' ? detail : err?.message;
       setError(message || 'Google login failed. Please try again.');
@@ -94,7 +95,7 @@ const Login = () => {
           width: '100%',
         });
       } catch (err) {
-        console.error('Google Sign-In initialization error:', err);
+        debugError('Google Sign-In initialization error:', err);
       }
     }
   }, [googleClientId]);

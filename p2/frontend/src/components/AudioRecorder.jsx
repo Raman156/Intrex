@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { transcribeAudio, validateAudioBlob } from '../services/transcriptionService'
+import { debugLog, debugError } from '../utils/logger'
 
 function AudioRecorder({ 
   questionId, 
@@ -108,7 +109,7 @@ function AudioRecorder({
       setTimeout(checkSilence, 1000)
       
     } catch (error) {
-      console.error('Error setting up audio monitoring:', error)
+      debugError('Error setting up audio monitoring:', error)
     }
   }
 
@@ -154,12 +155,12 @@ function AudioRecorder({
           setTranscriptionError(null)
           
           try {
-            console.log(`Starting transcription for question: ${questionId}`)
+            debugLog(`Starting transcription for question: ${questionId}`)
             transcript = await transcribeAudio(audioBlob)
             transcriptionStatus = 'success'
-            console.log(`Transcription completed for question: ${questionId}`)
+            debugLog(`Transcription completed for question: ${questionId}`)
           } catch (error) {
-            console.error(`Transcription failed for question ${questionId}:`, error.message)
+            debugError(`Transcription failed for question ${questionId}:`, error.message)
             setTranscriptionError(error.message)
             transcriptionStatus = 'transcription_failed'
           } finally {
@@ -184,7 +185,7 @@ function AudioRecorder({
       onStartRecording()
       
     } catch (error) {
-      console.error('Error starting recording:', error)
+      debugError('Error starting recording:', error)
       alert('Could not start recording. Please check your microphone.')
     }
   }
@@ -303,7 +304,7 @@ function AudioRecorder({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-20 h-20 recorder-icon recorder-icon--idle rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-4xl">🎤</span>
             </div>
             <p className="text-gray-400 mb-6">Click the button below to record your answer</p>
@@ -327,7 +328,8 @@ function AudioRecorder({
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ repeat: Infinity, duration: 1.5 }}
-                className="w-4 h-4 bg-red-500 rounded-full"
+                className="w-4 h-4 rounded-full"
+                style={{ backgroundColor: 'var(--error)' }}
               />
               <p className="text-4xl font-mono font-bold text-white">{formatTime(recordingDuration)}</p>
             </div>

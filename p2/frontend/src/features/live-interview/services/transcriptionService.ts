@@ -1,4 +1,5 @@
 import { geminiModel, safetySettings, withRetry, GeminiError, classifyGeminiError, createLoadingState, LoadingState } from '../../../lib/gemini'
+import { debugLog, debugError, debugWarn } from '../../../utils/logger'
 
 interface TranscriptionResult {
   transcript: string
@@ -140,7 +141,7 @@ export async function transcribeAudio(
     }
     
   } catch (error) {
-    console.error('Transcription failed:', error)
+    debugError('Transcription failed:', error)
     
     onProgress?.({
       ...loadingState,
@@ -170,7 +171,7 @@ export async function batchTranscribeAudio(
   
   for (const item of audioItems) {
     try {
-      console.log(`Starting transcription for question: ${item.questionId}`)
+      debugLog(`Starting transcription for question: ${item.questionId}`)
       
       const result = await transcribeAudio(
         item.audioBlob,
@@ -188,10 +189,10 @@ export async function batchTranscribeAudio(
       results.push(batchResult)
       onComplete?.(item.questionId, batchResult)
       
-      console.log(`Transcription completed for question: ${item.questionId}`)
+      debugLog(`Transcription completed for question: ${item.questionId}`)
       
     } catch (error) {
-      console.error(`Transcription failed for question ${item.questionId}:`, error)
+      debugError(`Transcription failed for question ${item.questionId}:`, error)
       
       const geminiError = error instanceof GeminiError ? error : classifyGeminiError(error as Error)
       

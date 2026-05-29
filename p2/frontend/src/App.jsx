@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import ErrorBoundary from './components/ErrorBoundary'
+import { isFirebaseConfigured, missingFirebaseKeys } from './config/firebase'
 
 // Eagerly loaded (small/critical)
 import SimpleLanding from './pages/SimpleLanding'
@@ -51,6 +52,11 @@ function App() {
               Skip to main content
             </a>
             <main id="main-content" role="main">
+              {!isFirebaseConfigured && (
+                <div className="w-full bg-yellow-50 text-yellow-900 px-4 py-2 text-sm">
+                  Firebase auth is not configured. Missing keys: {missingFirebaseKeys.join(', ')}. Auth flows are disabled until `.env` is updated.
+                </div>
+              )}
               <Suspense
                 fallback={
                   <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">

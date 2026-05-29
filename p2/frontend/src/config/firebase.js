@@ -17,16 +17,21 @@ const firebaseConfig = {
 // measurementId is optional (Analytics only)
 const requiredKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId']
 
+import { debugWarn, debugError, debugLog } from '../utils/logger'
+
 const missingKeys = requiredKeys.filter((key) => {
   const value = firebaseConfig[key]
   if (!value || value === 'undefined') {
-    console.warn(`Missing Firebase config: ${key}`)
+    debugWarn(`Missing Firebase config: ${key}`)
     return true
   }
   return false
 })
 
 const isConfigValid = missingKeys.length === 0
+
+export const isFirebaseConfigured = isConfigValid
+export const missingFirebaseKeys = missingKeys
 
 // Initialize Firebase
 let app = null
@@ -35,7 +40,7 @@ let analytics = null
 
 try {
   if (!isConfigValid) {
-    console.error(
+    debugError(
       `❌ Firebase configuration incomplete. Missing: ${missingKeys.join(', ')}. ` +
       'Authentication features are disabled until env vars are configured.'
     )
@@ -46,14 +51,14 @@ try {
     // Set persistence to LOCAL so user stays logged in
     setPersistence(auth, browserLocalPersistence)
       .catch((error) => {
-        console.error('Error setting persistence:', error)
+        debugError('Error setting persistence:', error)
       })
 
-    console.log('✅ Firebase initialized successfully')
+    debugLog('✅ Firebase initialized successfully')
   }
 } catch (error) {
-  console.error('❌ Firebase initialization error:', error)
-  console.error('Please ensure all Firebase environment variables are set correctly in .env.local')
+  debugError('❌ Firebase initialization error:', error)
+  debugError('Please ensure all Firebase environment variables are set correctly in .env.local')
 }
 
 export { auth, analytics }

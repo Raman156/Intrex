@@ -1,4 +1,5 @@
 import { geminiModel, safetySettings } from '../lib/gemini'
+import { debugLog, debugError } from '../utils/logger'
 
 /**
  * Sleep utility for retry delays
@@ -102,7 +103,7 @@ Evaluate how well the candidate answered this interview question. Return exactly
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Analysis attempt ${attempt}/${maxRetries} for question`)
+      debugLog(`Analysis attempt ${attempt}/${maxRetries} for question`)
       
       const result = await geminiModel.generateContent(prompt, {
         safetySettings,
@@ -142,32 +143,32 @@ Evaluate how well the candidate answered this interview question. Return exactly
         verdict: typeof analysis.verdict === 'string' ? analysis.verdict : 'Analysis completed'
       }
       
-      console.log(`Analysis successful on attempt ${attempt}`)
+      debugLog(`Analysis successful on attempt ${attempt}`)
       return validatedAnalysis
       
     } catch (error) {
       lastError = error
-      console.error(`Analysis attempt ${attempt} failed:`, error.message)
+      debugError(`Analysis attempt ${attempt} failed:`, error.message)
       
       // Don't retry on certain errors
       if (error.message?.includes('API key') || 
           error.message?.includes('quota') ||
           error.message?.includes('permission')) {
-        console.error('Non-retryable error encountered:', error.message)
+        debugError('Non-retryable error encountered:', error.message)
         break
       }
       
       // If this isn't the last attempt, wait before retrying
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt - 1) * 1000 // Exponential backoff
-        console.log(`Waiting ${delay}ms before retry...`)
+        debugLog(`Waiting ${delay}ms before retry...`)
         await sleep(delay)
       }
     }
   }
   
   // All retries failed - return fallback analysis
-  console.error(`Analysis failed after ${maxRetries} attempts. Last error: ${lastError?.message}`)
+  debugError(`Analysis failed after ${maxRetries} attempts. Last error: ${lastError?.message}`)
   return {
     scores: {
       relevance: 5,
@@ -191,7 +192,7 @@ export async function batchAnalyzeAnswers(analysisItems) {
   
   for (const item of analysisItems) {
     try {
-      console.log(`Starting analysis for question: ${item.questionId}`)
+      debugLog(`Starting analysis for question: ${item.questionId}`)
       
       const analysis = await analyzeAnswer(
         item.questionText,
@@ -206,10 +207,10 @@ export async function batchAnalyzeAnswers(analysisItems) {
         status: 'success'
       })
       
-      console.log(`Analysis completed for question: ${item.questionId}`)
+      debugLog(`Analysis completed for question: ${item.questionId}`)
       
     } catch (error) {
-      console.error(`Analysis failed for question ${item.questionId}:`, error.message)
+      debugError(`Analysis failed for question ${item.questionId}:`, error.message)
       
       results.push({
         questionId: item.questionId,

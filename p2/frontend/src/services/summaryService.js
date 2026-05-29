@@ -1,4 +1,5 @@
 import { geminiModel, safetySettings } from '../lib/gemini'
+import { debugLog, debugError } from '../utils/logger'
 
 /**
  * Sleep utility for retry delays
@@ -28,7 +29,7 @@ function parseSummaryResponse(rawResponse) {
         }
       } catch (thirdError) {
         // Return fallback structure
-        console.error('Failed to parse summary response:', rawResponse)
+        debugError('Failed to parse summary response:', rawResponse)
         return {
           overallFeedback: 'Interview completed successfully. Manual review recommended for detailed feedback.',
           topStrengths: ['Participated in the interview', 'Provided responses to questions', 'Demonstrated engagement'],
@@ -93,7 +94,7 @@ Analyze the candidate's interview performance patterns and provide actionable co
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Summary generation attempt ${attempt}/${maxRetries}`)
+      debugLog(`Summary generation attempt ${attempt}/${maxRetries}`)
       
       const result = await geminiModel.generateContent(prompt, {
         safetySettings,
@@ -127,32 +128,32 @@ Analyze the candidate's interview performance patterns and provide actionable co
         recommendedFocus: typeof summary.recommendedFocus === 'string' ? summary.recommendedFocus : 'Focus on interview preparation'
       }
       
-      console.log(`Summary generation successful on attempt ${attempt}`)
+      debugLog(`Summary generation successful on attempt ${attempt}`)
       return validatedSummary
       
     } catch (error) {
       lastError = error
-      console.error(`Summary generation attempt ${attempt} failed:`, error.message)
+      debugError(`Summary generation attempt ${attempt} failed:`, error.message)
       
       // Don't retry on certain errors
       if (error.message?.includes('API key') || 
           error.message?.includes('quota') ||
           error.message?.includes('permission')) {
-        console.error('Non-retryable error encountered:', error.message)
+        debugError('Non-retryable error encountered:', error.message)
         break
       }
       
       // If this isn't the last attempt, wait before retrying
       if (attempt < maxRetries) {
         const delay = Math.pow(2, attempt - 1) * 1000 // Exponential backoff
-        console.log(`Waiting ${delay}ms before retry...`)
+        debugLog(`Waiting ${delay}ms before retry...`)
         await sleep(delay)
       }
     }
   }
   
   // All retries failed - return fallback summary
-  console.error(`Summary generation failed after ${maxRetries} attempts. Last error: ${lastError?.message}`)
+  debugError(`Summary generation failed after ${maxRetries} attempts. Last error: ${lastError?.message}`)
   
   // Generate basic summary from available data
   const avgScore = validResults.reduce((sum, result) => sum + (result.scores?.overall || 0), 0) / validResults.length

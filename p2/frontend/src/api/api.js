@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { debugLog, debugError, debugWarn } from '../utils/logger'
 import { getAuthToken, clearAuthToken } from '../utils/authStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
@@ -38,7 +39,7 @@ api.interceptors.response.use(
 
     // Handle network errors
     if (!error.response) {
-      console.error('Network error:', error.message)
+      debugError('Network error:', error.message)
       throw new Error('Network error. Please check your connection.')
     }
 
@@ -94,7 +95,7 @@ const retryRequest = async (requestFn, maxRetries = 3, delay = 1000) => {
 
       // Exponential backoff
       const waitTime = delay * Math.pow(2, i)
-      console.log(`Retry attempt ${i + 1}/${maxRetries} after ${waitTime}ms`)
+      debugLog(`Retry attempt ${i + 1}/${maxRetries} after ${waitTime}ms`)
       await new Promise(resolve => setTimeout(resolve, waitTime))
     }
   }
@@ -369,7 +370,7 @@ export const syncFirebaseUser = async (idToken) => {
     const response = await api.post('/auth/firebase-sync', { token: idToken })
     return response.data
   } catch (err) {
-    console.warn('Firebase sync failed (non-critical):', err.message)
+    debugWarn('Firebase sync failed (non-critical):', err.message)
     return null
   }
 }
