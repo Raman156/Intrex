@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import routers
-from routers import ai_interview, auth, mfa, qr, upload, results, advanced_resume, live
+from routers import ai_interview, auth, mfa, qr, upload, results, advanced_resume, resume_builder, live
 
 from database import engine, Base
 from utils.rate_limiter import rate_limit_headers_middleware
@@ -70,6 +70,7 @@ app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(results.router, prefix="/api", tags=["results"])
 app.include_router(ai_interview.router, prefix="/api", tags=["ai-interview"])
 app.include_router(advanced_resume.router, tags=["resume-analysis"])
+app.include_router(resume_builder.router)
 app.include_router(live.router, prefix="/api", tags=["live"])
 
 @app.get("/")

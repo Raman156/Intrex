@@ -53,14 +53,12 @@ pyotp==2.9.0
 qrcode[pil]==7.4.2
 
 # ─── Video Processing ─────────────────────────────────────────────────────────
-# opencv is already installed; mediapipe + deepface enable advanced facial analysis
-# Install: pip install mediapipe deepface tensorflow-cpu pandas retina-face --no-deps
-# opencv-python==4.9.0.80  # already installed
-# mediapipe>=0.10.0         # already installed
-# deepface==0.0.99          # install with --no-deps
-# tensorflow-cpu            # required by deepface
-# pandas                    # required by deepface
-# retina-face==0.0.17       # required by deepface (install --no-deps)
+# MediaPipe provides face landmark detection (no TensorFlow needed)
+# DeepFace/TensorFlow not supported on Python 3.14 — geometry-based emotion used instead
+opencv-python==4.13.0.92
+mediapipe==0.10.33
+# deepface==0.0.99          # requires TensorFlow — not supported on Python 3.14
+# tensorflow-cpu            # not supported on Python 3.14
 
 # ─── FFmpeg (bundled — used for audio conversion when system FFmpeg is absent) ─
 imageio-ffmpeg==0.6.0
