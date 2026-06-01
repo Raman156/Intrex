@@ -44,6 +44,7 @@ class User(Base):
     # Relationships
     interviews = relationship("Interview", back_populates="user")
     ai_sessions = relationship("AIInterviewSession", back_populates="user")
+    resume_drafts = relationship("ResumeDraft", back_populates="user")
 
 
 # -----------------------------
@@ -79,6 +80,20 @@ class Interview(Base):
     transcript = Column(Text)
 
     user = relationship("User", back_populates="interviews")
+
+
+class ResumeDraft(Base):
+    __tablename__ = "resume_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    template_id = Column(String, nullable=False, default="modern")
+    resume_data = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="resume_drafts")
 
 
 # -----------------------------

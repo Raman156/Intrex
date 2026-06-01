@@ -26,6 +26,7 @@ const TestUpload = lazy(() => import('./pages/TestUpload'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Results = lazy(() => import('./pages/Results'))
 const EnhancedResumeUpload = lazy(() => import('./pages/EnhancedResumeUpload'))
+const ResumeBuilder = lazy(() => import('./pages/ResumeBuilder'))
 const Profile = lazy(() => import('./pages/Profile'))
 const TermsOfService = lazy(() => import('./pages/TermsOfService'))
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
@@ -73,6 +74,7 @@ function App() {
                   <Route path="/home" element={<Home />} />
                   <Route path="/upload" element={<Upload />} />
                   <Route path="/enhanced-resume-upload" element={<EnhancedResumeUpload />} />
+                  <Route path="/resume-builder" element={<ResumeBuilder />} />
                   <Route path="/video-upload" element={<VideoUpload />} />
                   <Route path="/test-upload" element={<TestUpload />} />
                   <Route path="/dashboard" element={<Dashboard />} />
