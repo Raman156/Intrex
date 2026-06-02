@@ -77,6 +77,15 @@ const EnhancedNavbar = () => {
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-primary group-hover:w-full transition-all duration-300" />
               </Link>
               <Link
+                to="/resume-builder"
+                className={`text-sm font-medium transition-all relative group ${
+                  isActive('/resume-builder') ? 'text-white' : 'text-text-secondary hover:text-white'
+                }`}
+              >
+                Resume Builder
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-primary group-hover:w-full transition-all duration-300" />
+              </Link>
+              <Link
                 to="/dashboard"
                 className={`text-sm font-medium transition-all relative group ${
                   isActive('/dashboard') ? 'text-white' : 'text-text-secondary hover:text-white'
@@ -157,6 +166,17 @@ const EnhancedNavbar = () => {
                 onClick={() => setIsOpen(false)}
               >
                 Upload
+              </Link>
+              <Link
+                to="/resume-builder"
+                className={`block px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isActive('/resume-builder') 
+                    ? 'bg-brand-primary/20 text-white' 
+                    : 'text-text-secondary hover:text-white hover:bg-white/5'
+                }`}
+                onClick={() => setIsOpen(false)}
+              >
+                Resume Builder
               </Link>
               <Link
                 to="/dashboard"

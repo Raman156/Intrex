@@ -9,3 +9,4 @@ from . import auth
 from . import mfa
 from . import qr
 from . import advanced_resume
+from . import resume_builder
