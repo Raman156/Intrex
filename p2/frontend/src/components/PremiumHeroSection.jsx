@@ -39,18 +39,9 @@ const PremiumHeroSection = () => {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center bg-bg-primary pt-24 pb-16 overflow-hidden">
-      {/* Gradient mesh background */}
-      <div className="absolute inset-0 bg-gradient-mesh opacity-15" />
-      
-      {/* Noise texture overlay */}
-      <div className="absolute inset-0 opacity-4 mix-blend-overlay pointer-events-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")`,
-      }} />
-
-      {/* Animated gradient orbs */}
-      <div className="absolute top-20 right-10 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl premium-orb" />
-      <div className="absolute bottom-20 left-10 w-96 h-96 bg-brand-secondary/10 rounded-full blur-3xl premium-orb" style={{ animationDelay: '1s' }} />
+    <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center bg-bg-primary pt-12 pb-16 overflow-hidden">
+      {/* Subtle gradient orb */}
+      <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-brand-primary/5 rounded-full blur-3xl" style={{ animation: 'float 8s ease-in-out infinite' }} />
       
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -58,11 +49,10 @@ const PremiumHeroSection = () => {
           <div className={`text-center lg:text-left transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             {/* Role Tags */}
             <div className="flex flex-wrap gap-2 mb-8 justify-center lg:justify-start">
-              {['Software Engineering', 'Data Science', 'Product Management', 'HR Interviews'].map((role, idx) => (
+              {['Software Engineering', 'Data Science', 'Product Management'].map((role) => (
                 <span
                   key={role}
                   className="px-3 py-1.5 bg-white/5 text-text-secondary rounded-full text-sm border border-white/10 hover:border-brand-primary hover:bg-brand-primary/10 transition-all duration-300 hover:text-white"
-                  style={{ animationDelay: `${idx * 80}ms` }}
                 >
                   {role}
                 </span>
@@ -70,10 +60,10 @@ const PremiumHeroSection = () => {
             </div>
 
             {/* Headline with animated AI gradient */}
-            <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 text-white leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif font-bold mb-6 text-white leading-tight">
               Master Every Interview
               <br />
-              with <span className="bg-gradient-ai bg-clip-text text-transparent animate-pulse">AI</span>-Powered Analytics
+              with <span className="bg-gradient-ai bg-clip-text text-transparent">AI</span>-Powered Analytics
             </h1>
 
             {/* Subtitle */}
@@ -140,11 +130,8 @@ const PremiumHeroSection = () => {
           {/* Right Content - Premium AI Widget */}
           <div className={`hidden lg:block transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <div className="relative">
-              {/* Glow background */}
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/20 to-brand-secondary/20 rounded-2xl blur-2xl" />
-              
               {/* Card */}
-              <div className="relative bg-bg-surface/80 backdrop-blur-xl rounded-2xl p-6 border border-brand-primary/30 hover:border-brand-primary/60 transition-all duration-300 shadow-2xl">
+              <div className="relative bg-bg-surface/80 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300 shadow-2xl">
                 {/* Progress bar */}
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-primary to-brand-secondary rounded-t-2xl" />
 

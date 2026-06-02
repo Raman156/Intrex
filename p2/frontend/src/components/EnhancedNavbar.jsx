@@ -15,29 +15,40 @@ const EnhancedNavbar = () => {
   }, [location]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+    let rafId = 0;
+
+    const updateScrolledState = () => {
+      const nextScrolled = window.scrollY > 20;
+      setScrolled((current) => (current === nextScrolled ? current : nextScrolled));
+      rafId = 0;
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    const handleScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(updateScrolledState);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const isActive = (path) => location.pathname === path;
 
   return (
     <>
-      {/* Top accent bar */}
-      <div className="fixed top-0 left-0 right-0 h-0.5 bg-brand-primary z-50" />
-      
-      <nav className={`fixed top-0.5 left-0 right-0 z-50 transition-all duration-300 ${
+      <nav className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled 
           ? 'bg-bg-primary/95 backdrop-blur-xl border-b border-white/5 shadow-lg' 
           : 'bg-transparent'
-      }`} style={{ paddingTop: '8px' }}>
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-16 sm:h-18">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity group">
+            <Link to="/" className="flex items-center gap-3 mr-4 lg:mr-8 hover:opacity-80 transition-opacity group shrink-0">
               <div className="w-10 h-10 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-lg flex items-center justify-center group-hover:shadow-glow-purple transition-shadow">
                 <span className="text-lg font-bold text-white">I</span>
               </div>
@@ -45,7 +56,7 @@ const EnhancedNavbar = () => {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-10">
               <Link
                 to="/"
                 className={`text-sm font-medium transition-all relative group ${
@@ -62,7 +73,7 @@ const EnhancedNavbar = () => {
                 }`}
               >
                 Live Interview
-                <span className="px-2 py-0.5 bg-brand-success/20 text-brand-success text-[10px] font-bold rounded-full border border-brand-success/40 animate-pulse-glow">
+                <span className="px-2 py-0.5 bg-brand-success/20 text-brand-success text-[10px] font-bold rounded-full border border-brand-success/40">
                   LIVE
                 </span>
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-primary group-hover:w-full transition-all duration-300" />

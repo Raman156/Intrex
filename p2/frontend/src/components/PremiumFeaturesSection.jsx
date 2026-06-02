@@ -1,23 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { Zap, Brain, TrendingUp, BarChart3, Sparkles, Shield } from 'lucide-react';
+import React from 'react';
+import { Brain, Zap, TrendingUp, BarChart3 } from 'lucide-react';
 
-const FeatureCard = ({ icon: Icon, title, description, index, accentColor }) => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), index * 100);
-    return () => clearTimeout(timer);
-  }, [index]);
-
+const FeatureCard = ({ icon: Icon, title, description, accentColor }) => {
   return (
-    <div
-      className={`group relative transition-all duration-500 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}
-    >
-      {/* Gradient border effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/20 to-brand-secondary/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      
+    <div className="relative">
       {/* Card */}
       <div className="relative bg-white/5 backdrop-blur-xl rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300 group-hover:translate-y-[-4px] group-hover:shadow-2xl">
         {/* Icon container */}
@@ -28,9 +14,6 @@ const FeatureCard = ({ icon: Icon, title, description, index, accentColor }) => 
         {/* Content */}
         <h3 className="text-lg font-serif font-semibold text-white mb-2">{title}</h3>
         <p className="text-text-secondary text-sm leading-relaxed">{description}</p>
-
-        {/* Bottom accent line */}
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-brand-primary to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-xl" />
       </div>
     </div>
   );
@@ -62,28 +45,10 @@ const PremiumFeaturesSection = () => {
       description: 'Track eye contact, confidence, clarity, pacing, and 45+ other metrics.',
       accentColor: 'bg-gradient-to-br from-brand-accent/30 to-brand-accent/10',
     },
-    {
-      icon: Sparkles,
-      title: 'Personalized Coaching',
-      description: 'AI-generated recommendations tailored to your specific weaknesses.',
-      accentColor: 'bg-gradient-to-br from-brand-primary/30 to-brand-secondary/10',
-    },
-    {
-      icon: Shield,
-      title: 'Privacy First',
-      description: 'Your data is encrypted and never shared. Complete control over your recordings.',
-      accentColor: 'bg-gradient-to-br from-brand-success/30 to-brand-success/10',
-    },
   ];
 
   return (
     <section className="relative py-24 bg-bg-secondary">
-      {/* Grid pattern background */}
-      <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
-        backgroundImage: 'linear-gradient(to right, #6D5BFF 1px, transparent 1px), linear-gradient(to bottom, #6D5BFF 1px, transparent 1px)',
-        backgroundSize: '4rem 4rem',
-      }} />
-
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-16">
@@ -91,17 +56,16 @@ const PremiumFeaturesSection = () => {
             Powerful Features
           </h2>
           <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-            Everything you need to master your interviews and land your dream role.
+            Everything you need to ace your interviews and advance your career.
           </p>
         </div>
 
         {/* Features grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => (
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {features.map((feature) => (
             <FeatureCard
-              key={index}
+              key={feature.title}
               {...feature}
-              index={index}
             />
           ))}
         </div>

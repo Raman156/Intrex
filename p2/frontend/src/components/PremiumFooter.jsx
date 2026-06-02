@@ -36,7 +36,7 @@ const PremiumFooter = () => {
   return (
     <footer className="relative bg-bg-primary border-t border-white/10">
       {/* CTA Strip */}
-      <div className="relative bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 border-b border-white/10">
+      <div className="relative border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
@@ -44,7 +44,7 @@ const PremiumFooter = () => {
                 Ready to ace your next interview?
               </h3>
               <p className="text-text-secondary">
-                Start your free session today and see the difference AI-powered coaching makes.
+                Start your free session today.
               </p>
             </div>
             <Link to="/live-interview">
@@ -124,7 +124,7 @@ const PremiumFooter = () => {
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
+        <div className="h-px bg-white/10 mb-8" />
 
         {/* Bottom Section */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -143,11 +143,6 @@ const PremiumFooter = () => {
           </div>
         </div>
       </div>
-
-      {/* Noise texture overlay */}
-      <div className="absolute inset-0 opacity-4 mix-blend-overlay pointer-events-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")`,
-      }} />
     </footer>
   );
 };

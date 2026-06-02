@@ -26,6 +26,11 @@
   --shadow-glow: 0 2px 16px rgba(98, 125, 152, 0.2);
 }
 
+html {
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+}
+
 /* Light theme overrides */
 body.light {
   --bg: #f8fafc;
@@ -65,6 +70,7 @@ body.dark {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
   }
 
   /* Dark theme (default) */
@@ -83,6 +89,10 @@ body.dark {
   body:not(.light):not(.dark) {
     background-color: #0B1220;
     color: white;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 
   /* Headings - Instrument Serif for elegance */
@@ -221,6 +231,24 @@ body.dark {
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin: 2em 0;
+  }
+
+  img, video, canvas, svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -380,11 +408,6 @@ code {
 
 /* Enhanced Premium Styles */
 @layer utilities {
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
-  }
-
   /* Enhanced gradient text */
   .gradient-text {
     background: linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #6366f1 100%);

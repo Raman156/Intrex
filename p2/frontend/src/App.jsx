@@ -52,10 +52,12 @@ function App() {
             >
               Skip to main content
             </a>
-            <main id="main-content" role="main">
+            <main id="main-content" role="main" className="min-h-screen overflow-x-clip bg-bg-primary">
               {!isFirebaseConfigured && (
-                <div className="w-full bg-yellow-50 text-yellow-900 px-4 py-2 text-sm">
-                  Firebase auth is not configured. Missing keys: {missingFirebaseKeys.join(', ')}. Auth flows are disabled until `.env` is updated.
+                <div className="px-4 pt-4">
+                  <div className="mx-auto max-w-7xl rounded-2xl border border-yellow-200/60 bg-yellow-50/95 px-4 py-3 text-sm text-yellow-900 shadow-sm shadow-yellow-950/5">
+                    Firebase auth is not configured. Missing keys: {missingFirebaseKeys.join(', ')}. Auth flows are disabled until `.env` is updated.
+                  </div>
                 </div>
               )}
               <Suspense
